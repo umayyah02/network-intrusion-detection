@@ -1,35 +1,53 @@
+#include "csv_loader.h"
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include "../../include/record.h"
 
-std::vector<Record> loadCSV(const std::string& path) {
-    std::vector<Record> records;
+static std::string trim(const std::string& s) {
+    size_t a = s.find_first_not_of(" \t\r\n");
+    if (a == std::string::npos) return "";
+    size_t b = s.find_last_not_of(" \t\r\n");
+    return s.substr(a, b - a + 1);
+}
+
+LoadResult loadCSV(const std::string& path) {
+    LoadResult result;
     std::ifstream file(path);
     if (!file.is_open()) {
         std::cerr << "Cannot open " << path << "\n";
-        return records;
+        return result;
     }
+
     std::string line;
-    std::getline(file, line);                 // skip header
+    if (!std::getline(file, line)) return result;
+
+    // Header: last column is the label, the rest are feature names
+    std::stringstream hs(line);
+    std::string name;
+    while (std::getline(hs, name, ',')) result.featureNames.push_back(trim(name));
+    if (!result.featureNames.empty()) result.featureNames.pop_back();
+
     while (std::getline(file, line)) {
         std::stringstream ss(line);
         std::string cell;
-        Record r;
         std::vector<std::string> cells;
-        while (std::getline(ss, cell, ',')) cells.push_back(cell);
-        if (cells.size() < 2) continue;
-        r.label = cells.back();
-        for (size_t i = 0; i + 1 < cells.size(); ++i)
-            r.features.push_back(std::stod(cells[i]));
-        records.push_back(r);
-    }
-    return records;
-}
+        while (std::getline(ss, cell, ',')) cells.push_back(trim(cell));
 
-int main() {
-    auto data = loadCSV("data/sample_test.csv");
-    std::cout << "Loaded " << data.size() << " records\n";
-    if (!data.empty())
-        std::cout << "First label: " << data[0].label << "\n";
+        if (cells.size() < 2) { result.skippedRows++; continue; }
+
+        Record r;
+        r.label = cells.back();
+        bool ok = true;
+        for (size_t i = 0; i + 1 < cells.size(); ++i) {
+            try {
+                double v = std::stod(cells[i]);
+                if (!std::isfinite(v)) { ok = false; break; }  // NaN / Infinity
+                r.features.push_back(v);
+            } catch (...) { ok = false; break; }
+        }
+        if (ok) result.records.push_back(r);
+        else result.skippedRows++;
+    }
+    return result;
 }
