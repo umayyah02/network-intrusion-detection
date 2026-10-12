@@ -1,0 +1,4 @@
+loader
+*.exe
+build/
+data/full/
