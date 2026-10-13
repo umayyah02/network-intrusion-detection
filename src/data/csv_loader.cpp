@@ -33,8 +33,8 @@ LoadResult loadCSV(const std::string& path) {
         std::string cell;
         std::vector<std::string> cells;
         while (std::getline(ss, cell, ',')) cells.push_back(trim(cell));
-
-        if (cells.size() < 2) { result.skippedRows++; continue; }
+        if (cells.size() != result.featureNames.size() + 1) { result.skippedRows++; continue; }
+        
 
         Record r;
         r.label = cells.back();
