@@ -1,0 +1,3 @@
+duration,packets,bytes,label
+120,10,5000,BENIGN
+3,500,40000,DoS
