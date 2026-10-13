@@ -205,7 +205,6 @@ Never commit passwords, API keys, generated build folders, or large datasets wit
 ---
 
 ## Project Goal
-Deliver a working C++-based network intrusion detection prototype with a React + TypeScript dashboard, independent Decision Tree and KNN classifiers, reliable evaluation, and clearly documented results.
 
 
 
