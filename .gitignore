@@ -1,4 +1,5 @@
-loader
 *.exe
+*.o
+*.zip
 build/
 data/full/
