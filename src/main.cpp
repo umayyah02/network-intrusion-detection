@@ -13,7 +13,12 @@ int main(int argc, char* argv[]) {
         PrepareOptions opt;
         if (argc >= 3) opt.seed = static_cast<unsigned>(std::stoul(argv[2]));
         opt.oneHotColumns = {"Protocol"};   // no-op if the CSV has no such column
-
+        CleanReport rep;
+        Dataset all = loadAndClean(argv[1], &rep);
+        std::cout << "Rows after cleaning: " << all.X.size()
+          << ", columns: " << all.featureNames.size() << "\n";
+        for (const auto& name : all.featureNames) std::cout << "  " << name << "\n";
+        printClassDistribution(all, "Overall class distribution");
         PreparedData p = prepareDataset(argv[1], opt);
 
         std::cout << "Skipped invalid: " << p.clean.skippedInvalid
