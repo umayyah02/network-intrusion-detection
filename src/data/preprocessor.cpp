@@ -1,5 +1,6 @@
 #include "preprocessor.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <random>
 #include <set>
@@ -66,46 +67,79 @@ SplitResult stratifiedSplit(const Dataset& ds, double testFraction, unsigned see
     return {pick(ds, trainIdx), pick(ds, testIdx)};
 }
 
-bool oneHotEncode(Dataset& ds, const std::string& columnName) {
-    size_t col = ds.featureNames.size();
-    for (size_t j = 0; j < ds.featureNames.size(); ++j)
-        if (lower(trimName(ds.featureNames[j])) == lower(trimName(columnName))) { col = j; break; }
-    if (col == ds.featureNames.size()) return false;
+void OneHotEncoder::fit(const Dataset& train, const std::vector<std::string>& columns) {
+    cols_.clear();
+    for (const std::string& wanted : columns) {
+        size_t col = train.featureNames.size();
+        for (size_t j = 0; j < train.featureNames.size(); ++j)
+            if (lower(trimName(train.featureNames[j])) == lower(trimName(wanted))) { col = j; break; }
+        if (col == train.featureNames.size()) continue;            // column not in this CSV
 
-    std::set<double> values;
-    for (const auto& row : ds.X) values.insert(row[col]);
-    if (values.size() > 20) throw std::invalid_argument("oneHotEncode: '" + columnName + "' has too many distinct values");
-    std::vector<double> cats(values.begin(), values.end());
-
-    for (auto& row : ds.X) {
-        std::vector<double> out;
-        out.reserve(row.size() - 1 + cats.size());
-        for (size_t j = 0; j < row.size(); ++j) if (j != col) out.push_back(row[j]);
-        for (double c : cats) out.push_back(row[col] == c ? 1.0 : 0.0);
-        row = std::move(out);
+        std::set<double> values;
+        for (const auto& row : train.X) values.insert(row[col]);
+        if (values.size() > 20) throw std::invalid_argument("OneHotEncoder: '" + wanted + "' has too many distinct values");
+        cols_.push_back({trimName(train.featureNames[col]), std::vector<double>(values.begin(), values.end())});
     }
-    std::string base = trimName(ds.featureNames[col]);
-    ds.featureNames.erase(ds.featureNames.begin() + col);
-    for (double c : cats) ds.featureNames.push_back(base + "=" + numToString(c));
-    return true;
 }
 
-void Scaler::fit(const Dataset& train) {
+void OneHotEncoder::transform(Dataset& ds) const {
+    for (const Col& c : cols_) {
+        size_t col = ds.featureNames.size();
+        for (size_t j = 0; j < ds.featureNames.size(); ++j)
+            if (lower(trimName(ds.featureNames[j])) == lower(c.name)) { col = j; break; }
+        if (col == ds.featureNames.size()) throw std::invalid_argument("OneHotEncoder: column '" + c.name + "' missing");
+
+        for (auto& row : ds.X) {
+            std::vector<double> out;
+            out.reserve(row.size() - 1 + c.categories.size());
+            for (size_t j = 0; j < row.size(); ++j) if (j != col) out.push_back(row[j]);
+            for (double cat : c.categories) out.push_back(row[col] == cat ? 1.0 : 0.0);   // unseen -> all zeros
+            row = std::move(out);
+        }
+        ds.featureNames.erase(ds.featureNames.begin() + col);
+        for (double cat : c.categories) ds.featureNames.push_back(c.name + "=" + numToString(cat));
+    }
+}
+
+void Scaler::fit(const Dataset& train, bool logTransform) {
     size_t f = train.featureNames.size(), n = train.X.size();
     if (n == 0) throw std::invalid_argument("Scaler::fit: empty training set");
+    binary_.assign(f, 1);
+    log_.assign(f, 0);
     mean_.assign(f, 0.0);
-    std_.assign(f, 0.0);
-    for (const auto& row : train.X) for (size_t j = 0; j < f; ++j) mean_[j] += row[j];
-    for (double& m : mean_) m /= n;
-    for (const auto& row : train.X) for (size_t j = 0; j < f; ++j) std_[j] += (row[j] - mean_[j]) * (row[j] - mean_[j]);
-    for (double& s : std_) { s = std::sqrt(s / n); if (s < 1e-12) s = 1.0; }   // constant column -> all zeros
+    std_.assign(f, 1.0);
+
+    std::vector<double> minVal(f, 0.0);
+    for (size_t j = 0; j < f; ++j) minVal[j] = train.X[0][j];
+    for (const auto& row : train.X)
+        for (size_t j = 0; j < f; ++j) {
+            if (row[j] != 0.0 && row[j] != 1.0) binary_[j] = 0;
+            minVal[j] = std::min(minVal[j], row[j]);
+        }
+    for (size_t j = 0; j < f; ++j) log_[j] = logTransform && !binary_[j] && minVal[j] >= 0.0;
+
+    auto value = [&](double v, size_t j) { return log_[j] ? std::log1p(std::max(v, 0.0)) : v; };
+    std::vector<double> sum(f, 0.0), sq(f, 0.0);
+    for (const auto& row : train.X) for (size_t j = 0; j < f; ++j) sum[j] += value(row[j], j);
+    for (size_t j = 0; j < f; ++j) mean_[j] = sum[j] / n;
+    for (const auto& row : train.X)
+        for (size_t j = 0; j < f; ++j) { double d = value(row[j], j) - mean_[j]; sq[j] += d * d; }
+    for (size_t j = 0; j < f; ++j) {
+        if (binary_[j]) { mean_[j] = 0.0; std_[j] = 1.0; continue; }
+        std_[j] = std::sqrt(sq[j] / n);
+        if (std_[j] < 1e-12) std_[j] = 1.0;                         // constant column -> all zeros
+    }
 }
 
 void Scaler::transform(Dataset& ds) const {
     if (mean_.empty()) throw std::logic_error("Scaler::transform called before fit");
     for (auto& row : ds.X) {
         if (row.size() != mean_.size()) throw std::invalid_argument("Scaler::transform: feature count mismatch");
-        for (size_t j = 0; j < row.size(); ++j) row[j] = (row[j] - mean_[j]) / std_[j];
+        for (size_t j = 0; j < row.size(); ++j) {
+            if (binary_[j]) continue;                               // flags and one-hot stay 0/1
+            double v = log_[j] ? std::log1p(std::max(row[j], 0.0)) : row[j];
+            row[j] = (v - mean_[j]) / std_[j];
+        }
     }
 }
 
@@ -184,13 +218,15 @@ PreparedData prepareDataset(const std::string& path, const PrepareOptions& opt) 
     PreparedData out;
     Dataset all = loadAndClean(path, &out.clean);
     if (all.X.size() < 2) throw std::runtime_error("Not enough usable rows to split (" + std::to_string(all.X.size()) + ")");
-    for (const auto& col : opt.oneHotColumns) oneHotEncode(all, col);
 
     SplitResult sp = stratifiedSplit(all, opt.testFraction, opt.seed);
+    out.encoder.fit(sp.train, opt.oneHotColumns);                      // categories from train only
+    out.encoder.transform(sp.train);
+    out.encoder.transform(sp.test);
     out.selector.fit(sp.train, opt.maxFeatures, opt.corrThreshold);   // train only
     out.selector.apply(sp.train);
     out.selector.apply(sp.test);
-    out.scaler.fit(sp.train);                                          // train only
+    out.scaler.fit(sp.train, opt.logTransform);                        // train only
     out.scaler.transform(sp.train);
     out.scaler.transform(sp.test);
     out.train = std::move(sp.train);

@@ -12,20 +12,33 @@ struct SplitResult { Dataset train, test; };
 // Classes with >= 2 rows always put at least 1 row in each side.
 SplitResult stratifiedSplit(const Dataset& ds, double testFraction = 0.2, unsigned seed = 42);
 
-// FR-D3: one-hot encodes a categorical column (e.g. "Protocol"). Returns false if the column
-// does not exist. Throws if it has more than 20 distinct values (not really categorical).
-// Needs no fitted statistics, so it is safe to run before the split.
-bool oneHotEncode(Dataset& ds, const std::string& columnName);
+// FR-D3: one-hot encoding of categorical columns (e.g. "Protocol").
+// fit() learns the category list from the TRAIN set only; transform() applies that fixed list
+// to train and test. A category never seen in train becomes all zeros. Columns that do not exist
+// are skipped. Throws if a column has more than 20 distinct values (not really categorical).
+class OneHotEncoder {
+public:
+    void fit(const Dataset& train, const std::vector<std::string>& columns);
+    void transform(Dataset& ds) const;
+private:
+    struct Col { std::string name; std::vector<double> categories; };
+    std::vector<Col> cols_;
+};
 
-// FR-D3: z-score scaling. fit() on TRAIN only, transform() on train and test.
+// FR-D3: scaling, fitted on TRAIN only.
+//  - binary columns (every train value is 0 or 1: flags, one-hot) are left as they are
+//  - if logTransform is on, non-negative non-binary columns get log(1+x) first (tames long tails)
+//  - everything else is z-scored: (x - mean) / std
+// At transform time negative values in a log column are clamped to 0 before log(1+x).
 class Scaler {
 public:
-    void fit(const Dataset& train);
+    void fit(const Dataset& train, bool logTransform = true);
     void transform(Dataset& ds) const;
     const std::vector<double>& mean() const { return mean_; }
     const std::vector<double>& stddev() const { return std_; }
 private:
     std::vector<double> mean_, std_;
+    std::vector<char> binary_, log_;
 };
 
 // FR-D4: feature selection, fitted on TRAIN only.
@@ -49,15 +62,17 @@ struct PrepareOptions {
     size_t maxFeatures = 20;
     double corrThreshold = 0.95;
     std::vector<std::string> oneHotColumns;   // e.g. {"Protocol"}; empty = none
+    bool logTransform = true;                 // log(1+x) on skewed non-negative columns before z-score
 };
 
 struct PreparedData {
     Dataset train, test;                  // scaled, selected, same feature columns
     CleanReport clean;
+    OneHotEncoder encoder;
     FeatureSelector selector;
     Scaler scaler;
 };
 
-// The single call Member 2 uses: load -> clean -> encode -> split -> select -> scale.
+// The single call Member 2 uses: load -> clean -> split -> encode -> select -> scale.
 // Throws std::runtime_error on load failure or when there are too few rows to split.
 PreparedData prepareDataset(const std::string& path, const PrepareOptions& opt = PrepareOptions());

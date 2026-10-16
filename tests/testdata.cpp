@@ -73,11 +73,26 @@ static void testSplit() {
 
 static void testScalerNoLeak() {
     Dataset train = makeDs({{0}, {2}, {4}}, {0, 0, 0}, 1), test = makeDs({{10}}, {0}, 1);
-    Scaler s; s.fit(train); s.transform(train); s.transform(test);
+    Scaler s; s.fit(train, false); s.transform(train); s.transform(test);
     double m = (train.X[0][0] + train.X[1][0] + train.X[2][0]) / 3;
     CHECK(std::fabs(m) < 1e-9);
     double sd = std::sqrt(8.0 / 3.0);                       // train mean 2, std sqrt(8/3)
     CHECK(std::fabs(test.X[0][0] - (10 - 2) / sd) < 1e-9);  // test uses TRAIN statistics
+}
+
+static void testScalerBinaryAndLog() {
+    // col0 binary flag (must stay 0/1), col1 skewed non-negative (log applied), col2 has negatives (no log)
+    Dataset train = makeDs({{0, 1, -1}, {1, 10, 0}, {0, 100, 1}, {1, 1000, 2}}, {0, 1, 0, 1}, 3);
+    Dataset test = makeDs({{1, -5, 9}}, {0}, 3);
+    Scaler s; s.fit(train, true); s.transform(train); s.transform(test);
+    CHECK(train.X[0][0] == 0.0 && train.X[1][0] == 1.0);                     // binary untouched
+    double m = 0; for (auto& r : train.X) m += r[1]; CHECK(std::fabs(m / 4) < 1e-9);   // z-scored after log
+    CHECK(train.X[3][1] < 2.0);                                              // outlier tamed vs raw z-score
+    double l = std::log1p(0.0), lm = (std::log1p(1) + std::log1p(10) + std::log1p(100) + std::log1p(1000)) / 4;
+    double ls = 0; for (double v : {1.0, 10.0, 100.0, 1000.0}) ls += (std::log1p(v) - lm) * (std::log1p(v) - lm);
+    ls = std::sqrt(ls / 4);
+    CHECK(std::fabs(test.X[0][1] - (l - lm) / ls) < 1e-9);                   // negative test value clamped to 0
+    CHECK(test.X[0][0] == 1.0);
 }
 
 static void testSelector() {
@@ -99,13 +114,17 @@ static void testSelector() {
 }
 
 static void testOneHot() {
-    Dataset d = makeDs({{6, 1}, {17, 2}, {6, 3}}, {0, 0, 0}, 2);
-    d.featureNames[0] = " Protocol";
-    CHECK(oneHotEncode(d, "Protocol"));
-    CHECK(d.featureNames.size() == 3 && d.featureNames[1] == "Protocol=6");
-    CHECK(d.X[0] == (std::vector<double>{1, 1, 0}));
-    CHECK(d.X[1] == (std::vector<double>{2, 0, 1}));
-    CHECK(!oneHotEncode(d, "Nope"));
+    Dataset train = makeDs({{6, 1}, {17, 2}, {6, 3}}, {0, 0, 0}, 2);
+    Dataset test = makeDs({{99, 4}, {17, 5}}, {0, 0}, 2);            // 99 never seen in train
+    train.featureNames[0] = " Protocol"; test.featureNames[0] = " Protocol";
+    OneHotEncoder enc; enc.fit(train, {"Protocol", "Nope"});
+    enc.transform(train); enc.transform(test);
+    CHECK(train.featureNames.size() == 3 && train.featureNames[1] == "Protocol=6");
+    CHECK(train.X[0] == (std::vector<double>{1, 1, 0}));
+    CHECK(train.X[1] == (std::vector<double>{2, 0, 1}));
+    CHECK(test.X[0] == (std::vector<double>{4, 0, 0}));              // unseen category -> all zeros
+    CHECK(test.X[1] == (std::vector<double>{5, 0, 1}));
+    CHECK(test.featureNames == train.featureNames);                  // same dimensions as train
 }
 
 static void testCsv() {
@@ -132,7 +151,7 @@ static void testCsv() {
 
 int main() {
     testLabels(); testUnknownLabelAndValidate(); testDuplicates(); testSplit();
-    testScalerNoLeak(); testSelector(); testOneHot(); testCsv();
+    testScalerNoLeak(); testScalerBinaryAndLog(); testSelector(); testOneHot(); testCsv();
     std::cout << (failures ? "FAILED\n" : "All data-layer tests passed\n");
     return failures ? 1 : 0;
 }
