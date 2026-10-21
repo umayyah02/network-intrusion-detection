@@ -198,23 +198,23 @@ static void testPrepareOptionsAndPrepareLike() {
     CHECK(threw);
 
     // prepareLike: a file with the same columns is prepared exactly like the training data
-    Dataset other = prepareLike(base, "t_other.csv");
+    Dataset other = prepareLike(base, "t_other.csv", nullptr);
     CHECK(other.featureNames == base.train.featureNames);
     CHECK(other.X.size() == 80);
     // preparing the training csv itself must reproduce every test row of the split exactly
-    Dataset again = prepareLike(base, "t_train.csv");
+    Dataset again = prepareLike(base, "t_train.csv", nullptr);
     std::set<std::vector<double>> rows(again.X.begin(), again.X.end());
     bool allFound = true;
     for (const auto& r : base.test.X) if (!rows.count(r)) allFound = false;
     CHECK(allFound);
     // same with keep/drop options
-    Dataset otherB = prepareLike(pb, "t_other.csv");
+    Dataset otherB = prepareLike(pb, "t_other.csv", nullptr);
     CHECK(otherB.featureNames == (std::vector<std::string>{"b"}));
 
     // different columns -> error
     writeSyntheticCsv("t_wrong.csv", 0, 40, "a,b,zzz,Label");
     threw = false;
-    try { prepareLike(base, "t_wrong.csv"); } catch (const std::runtime_error&) { threw = true; }
+    try { prepareLike(base, "t_wrong.csv", nullptr); } catch (const std::runtime_error&) { threw = true; }
     CHECK(threw);
     std::remove("t_train.csv"); std::remove("t_other.csv"); std::remove("t_wrong.csv");
 }
