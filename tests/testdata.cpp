@@ -149,9 +149,80 @@ static void testCsv() {
     std::remove("t_bad.csv"); std::remove("t_empty.csv");
 }
 
+static void writeSyntheticCsv(const std::string& path, int from, int to, const std::string& header = "a,b,c,Label") {
+    const char* labels[4] = {"BENIGN", "DoS Hulk", "PortScan", "SSH-Patator"};
+    std::ofstream f(path);
+    f << header << "\n";
+    for (int i = from; i < to; ++i) {
+        int cls = i % 4;
+        f << i << "," << (i * 7) % 13 + cls * 3 << "," << i % 5 << "," << labels[cls] << "\n";
+    }
+}
+
+static void testColumnHelpers() {
+    Dataset d = makeDs({{1, 2, 3}, {4, 5, 6}}, {0, 1}, 3);
+    d.featureNames = {" Alpha", "Beta", "Gamma"};
+    Dataset k = d; keepColumns(k, {"gamma", "alpha"});
+    CHECK(k.featureNames == (std::vector<std::string>{" Alpha", "Gamma"}));          // original order kept
+    CHECK(k.X[1] == (std::vector<double>{4, 6}));
+    Dataset r = d; removeColumns(r, {"BETA"});
+    CHECK(r.featureNames.size() == 2 && r.X[0] == (std::vector<double>{1, 3}));
+    bool t1 = false, t2 = false, t3 = false;
+    try { keepColumns(d, {"Nope"}); } catch (const std::invalid_argument&) { t1 = true; }
+    try { removeColumns(d, {"Nope"}); } catch (const std::invalid_argument&) { t2 = true; }
+    try { removeColumns(d, {"Alpha", "Beta", "Gamma"}); } catch (const std::invalid_argument&) { t3 = true; }
+    CHECK(t1 && t2 && t3);
+}
+
+static void testPrepareOptionsAndPrepareLike() {
+    writeSyntheticCsv("t_train.csv", 0, 240);
+    writeSyntheticCsv("t_other.csv", 240, 320);
+
+    PrepareOptions opt; opt.maxFeatures = 0;
+    PreparedData base = prepareDataset("t_train.csv", opt);
+    CHECK(base.train.featureNames.size() >= 2);
+
+    PrepareOptions dropA = opt; dropA.dropColumns = {"a"};
+    PreparedData pd = prepareDataset("t_train.csv", dropA);
+    for (const auto& n : pd.train.featureNames) CHECK(n != "a");
+    CHECK(pd.train.X[0].size() == pd.train.featureNames.size());
+
+    PrepareOptions onlyB = opt; onlyB.keepOnlyColumns = {"b"};
+    PreparedData pb = prepareDataset("t_train.csv", onlyB);
+    CHECK(pb.train.featureNames == (std::vector<std::string>{"b"}));
+    CHECK(pb.test.featureNames == pb.train.featureNames);
+
+    bool threw = false;
+    PrepareOptions bad = opt; bad.dropColumns = {"zzz"};
+    try { prepareDataset("t_train.csv", bad); } catch (const std::invalid_argument&) { threw = true; }
+    CHECK(threw);
+
+    // prepareLike: a file with the same columns is prepared exactly like the training data
+    Dataset other = prepareLike(base, "t_other.csv", nullptr);
+    CHECK(other.featureNames == base.train.featureNames);
+    CHECK(other.X.size() == 80);
+    // preparing the training csv itself must reproduce every test row of the split exactly
+    Dataset again = prepareLike(base, "t_train.csv", nullptr);
+    std::set<std::vector<double>> rows(again.X.begin(), again.X.end());
+    bool allFound = true;
+    for (const auto& r : base.test.X) if (!rows.count(r)) allFound = false;
+    CHECK(allFound);
+    // same with keep/drop options
+    Dataset otherB = prepareLike(pb, "t_other.csv", nullptr);
+    CHECK(otherB.featureNames == (std::vector<std::string>{"b"}));
+
+    // different columns -> error
+    writeSyntheticCsv("t_wrong.csv", 0, 40, "a,b,zzz,Label");
+    threw = false;
+    try { prepareLike(base, "t_wrong.csv", nullptr); } catch (const std::runtime_error&) { threw = true; }
+    CHECK(threw);
+    std::remove("t_train.csv"); std::remove("t_other.csv"); std::remove("t_wrong.csv");
+}
+
 int main() {
     testLabels(); testUnknownLabelAndValidate(); testDuplicates(); testSplit();
     testScalerNoLeak(); testScalerBinaryAndLog(); testSelector(); testOneHot(); testCsv();
+    testColumnHelpers(); testPrepareOptionsAndPrepareLike();
     std::cout << (failures ? "FAILED\n" : "All data-layer tests passed\n");
     return failures ? 1 : 0;
 }

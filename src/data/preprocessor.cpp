@@ -39,7 +39,50 @@ std::string numToString(double v) {
     return std::to_string(v);
 }
 
+size_t findColumn(const Dataset& ds, const std::string& name) {
+    for (size_t j = 0; j < ds.featureNames.size(); ++j)
+        if (lower(trimName(ds.featureNames[j])) == lower(trimName(name))) return j;
+    return ds.featureNames.size();
+}
+
+void projectColumns(Dataset& ds, const std::vector<size_t>& idx) {
+    for (auto& row : ds.X) {
+        std::vector<double> out;
+        out.reserve(idx.size());
+        for (size_t j : idx) out.push_back(row[j]);
+        row = std::move(out);
+    }
+    std::vector<std::string> names;
+    for (size_t j : idx) names.push_back(ds.featureNames[j]);
+    ds.featureNames = std::move(names);
+}
+
 } // namespace
+
+void keepColumns(Dataset& ds, const std::vector<std::string>& names) {
+    if (names.empty()) return;
+    std::set<size_t> wanted;
+    for (const std::string& n : names) {
+        size_t j = findColumn(ds, n);
+        if (j == ds.featureNames.size()) throw std::invalid_argument("keepColumns: column '" + n + "' not found");
+        wanted.insert(j);
+    }
+    projectColumns(ds, std::vector<size_t>(wanted.begin(), wanted.end()));   // set keeps original order
+}
+
+void removeColumns(Dataset& ds, const std::vector<std::string>& names) {
+    if (names.empty()) return;
+    std::set<size_t> drop;
+    for (const std::string& n : names) {
+        size_t j = findColumn(ds, n);
+        if (j == ds.featureNames.size()) throw std::invalid_argument("removeColumns: column '" + n + "' not found");
+        drop.insert(j);
+    }
+    if (drop.size() == ds.featureNames.size()) throw std::invalid_argument("removeColumns: would remove every column");
+    std::vector<size_t> keep;
+    for (size_t j = 0; j < ds.featureNames.size(); ++j) if (!drop.count(j)) keep.push_back(j);
+    projectColumns(ds, keep);
+}
 
 SplitResult stratifiedSplit(const Dataset& ds, double testFraction, unsigned seed) {
     if (!(testFraction > 0.0 && testFraction < 1.0))
@@ -219,6 +262,12 @@ PreparedData prepareDataset(const std::string& path, const PrepareOptions& opt) 
     Dataset all = loadAndClean(path, &out.clean);
     if (all.X.size() < 2) throw std::runtime_error("Not enough usable rows to split (" + std::to_string(all.X.size()) + ")");
 
+    out.originalFeatureNames = all.featureNames;
+    out.keepOnlyColumns = opt.keepOnlyColumns;
+    out.dropColumns = opt.dropColumns;
+    keepColumns(all, opt.keepOnlyColumns);       // no statistics involved, safe before the split
+    removeColumns(all, opt.dropColumns);
+
     SplitResult sp = stratifiedSplit(all, opt.testFraction, opt.seed);
     out.encoder.fit(sp.train, opt.oneHotColumns);                      // categories from train only
     out.encoder.transform(sp.train);
@@ -232,4 +281,16 @@ PreparedData prepareDataset(const std::string& path, const PrepareOptions& opt) 
     out.train = std::move(sp.train);
     out.test = std::move(sp.test);
     return out;
+}
+
+Dataset prepareLike(const PreparedData& p, const std::string& path, CleanReport* report) {
+    Dataset ds = loadAndClean(path, report);
+    if (ds.featureNames != p.originalFeatureNames)
+        throw std::runtime_error("prepareLike: '" + path + "' has different feature columns than the training data");
+    keepColumns(ds, p.keepOnlyColumns);
+    removeColumns(ds, p.dropColumns);
+    p.encoder.transform(ds);
+    p.selector.apply(ds);
+    p.scaler.transform(ds);
+    return ds;
 }

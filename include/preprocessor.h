@@ -56,18 +56,28 @@ private:
     std::vector<size_t> kept_;
 };
 
+// Column helpers. Names are matched ignoring case and surrounding spaces; a name that does not
+// exist throws std::invalid_argument (catches typos). Nothing is learned from the data, so these
+// are safe to apply before the split.
+void keepColumns(Dataset& ds, const std::vector<std::string>& names);     // keep only these (original order)
+void removeColumns(Dataset& ds, const std::vector<std::string>& names);   // remove these
+
 struct PrepareOptions {
     double testFraction = 0.2;
     unsigned seed = 42;
     size_t maxFeatures = 20;
     double corrThreshold = 0.95;
     std::vector<std::string> oneHotColumns;   // e.g. {"Protocol"}; empty = none
+    std::vector<std::string> keepOnlyColumns; // if not empty, use ONLY these columns (for baselines)
+    std::vector<std::string> dropColumns;     // columns to remove, e.g. {"Destination Port"}
     bool logTransform = true;                 // log(1+x) on skewed non-negative columns before z-score
 };
 
 struct PreparedData {
     Dataset train, test;                  // scaled, selected, same feature columns
     CleanReport clean;
+    std::vector<std::string> originalFeatureNames;   // columns of the CSV, before keep/drop
+    std::vector<std::string> keepOnlyColumns, dropColumns;   // copies of the options used
     OneHotEncoder encoder;
     FeatureSelector selector;
     Scaler scaler;
@@ -76,3 +86,9 @@ struct PreparedData {
 // The single call Member 2 uses: load -> clean -> split -> encode -> select -> scale.
 // Throws std::runtime_error on load failure or when there are too few rows to split.
 PreparedData prepareDataset(const std::string& path, const PrepareOptions& opt = PrepareOptions());
+
+// Prepares ANOTHER csv (for example data/sample_B.csv) exactly like the training data: same
+// keep/drop columns, same one-hot categories, same selected features, same scaling (all taken from p,
+// nothing is re-fitted). Use it for test-only files. Throws std::runtime_error if the file cannot be
+// loaded or its columns differ from the training CSV.
+Dataset prepareLike(const PreparedData& p, const std::string& path, CleanReport* report = nullptr);
