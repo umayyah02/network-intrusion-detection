@@ -16,6 +16,15 @@
 //                            merged class name; the loader maps both to the same class index
 //   --exclude FILE           skip every row whose features also appear in FILE (repeatable),
 //                            so the new sample shares no row with an earlier one
+//   --only-variants a,b,c    keep only attack rows whose original label contains one of these words
+//                            (ignoring case), e.g. hulk,goldeneye,ddos. BENIGN rows are never filtered.
+//                            Remember to list portscan if you want PortScan rows. Implies --extra-attacks.
+//   --skip-variants a,b,c    drop attack rows whose original label contains one of these words,
+//                            e.g. slowloris,slowhttptest (hold them out for a test file)
+//   --balance-variants       within a class, take the quota evenly from each variant (a variant with
+//                            fewer rows gives all it has and the others make up the rest)
+//   Words that can be used: hulk, goldeneye, slowloris, slowhttptest, ddos, portscan,
+//                           ftp-patator, ssh-patator, brute force (the web attack).
 #include <algorithm>
 #include <cctype>
 #include <fstream>
@@ -33,7 +42,8 @@ struct Options {
     vector<string> inputs, excludes;
     unsigned seed = 42;
     map<string, size_t> quota = {{"BENIGN", 400}, {"DoS", 200}, {"PortScan", 200}, {"BruteForce", 200}};
-    bool extraAttacks = false, extraOnly = false, rawLabels = false;
+    vector<string> onlyVariants, skipVariants;
+    bool extraAttacks = false, extraOnly = false, rawLabels = false, balance = false;
 };
 
 static string trim(const string& s) {
@@ -58,6 +68,35 @@ static string cleanHeader(const string& line) {
     }
     return out;
 }
+
+static vector<string> splitList(const string& s) {
+    vector<string> out;
+    stringstream ss(s);
+    string item;
+    while (getline(ss, item, ',')) {
+        item = lower(trim(item));
+        if (!item.empty()) out.push_back(item);
+    }
+    return out;
+}
+
+static bool matchesAny(const string& lowerLabel, const vector<string>& words) {
+    for (const string& w : words)
+        if (lowerLabel.find(w) != string::npos) return true;
+    return false;
+}
+
+// For printing: lower case, and any non-ASCII byte (the odd dash in the web attack label) shown as '-'.
+static string printable(const string& raw) {
+    string t = lower(raw);
+    for (char& c : t) if (static_cast<unsigned char>(c) > 127) c = '-';
+    return t;
+}
+
+struct Picked {
+    string row;   // the line to write
+    string raw;   // original label, for the summary
+};
 
 struct Mapped {
     string cls;   // BENIGN, DoS, PortScan, BruteForce, or "" if we don't use this label
@@ -103,6 +142,15 @@ static bool parseArgs(int argc, char* argv[], Options& o) {
         } else if (a == "--exclude") {
             if (!next(v)) return false;
             o.excludes.push_back(v);
+        } else if (a == "--only-variants") {
+            if (!next(v)) return false;
+            o.onlyVariants = splitList(v);
+            o.extraAttacks = true;   // naming ddos or the web attack must be enough to include them
+        } else if (a == "--skip-variants") {
+            if (!next(v)) return false;
+            o.skipVariants = splitList(v);
+        } else if (a == "--balance-variants") {
+            o.balance = true;
         } else if (a == "--extra-attacks") {
             o.extraAttacks = true;
         } else if (a == "--extra-only") {
@@ -127,7 +175,8 @@ int main(int argc, char* argv[]) {
     if (!parseArgs(argc, argv, opt)) {
         cerr << "Usage: make_sample <output.csv> <input1.csv> [input2.csv ...]\n"
                 "         [--seed N] [--quota CLASS=N]... [--extra-attacks] [--extra-only]\n"
-                "         [--raw-labels] [--exclude FILE]...\n";
+                "         [--raw-labels] [--exclude FILE]... [--only-variants a,b] [--skip-variants a,b]\n"
+                "         [--balance-variants]\n";
         return 1;
     }
 
@@ -144,8 +193,12 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    map<string, vector<string>> reservoir;  // chosen rows per class
-    map<string, size_t> seen;               // rows seen per class
+    // Normally the reservoir key is the class name. With --balance-variants it is class|variant,
+    // so every variant keeps its own random sample and they are combined at the end.
+    map<string, vector<Picked>> reservoir;
+    map<string, size_t> seenKey;            // rows seen per key
+    map<string, size_t> seenClass;          // rows seen per class
+    map<string, size_t> variantHits;        // rows matching each --only/--skip word (to catch typos)
     mt19937 rng(opt.seed);
     string header;
     size_t excludedHits = 0;
@@ -173,33 +226,73 @@ int main(int argc, char* argv[]) {
             if (m.cls.empty()) continue;
             if (m.extra && !opt.extraAttacks) continue;
             if (opt.extraOnly && !m.extra && (m.cls == "DoS" || m.cls == "BruteForce")) continue;
+
+            if (m.cls != "BENIGN" && (!opt.onlyVariants.empty() || !opt.skipVariants.empty())) {
+                string lr = lower(rawLabel);
+                for (const string& w : opt.onlyVariants) if (lr.find(w) != string::npos) ++variantHits[w];
+                for (const string& w : opt.skipVariants) if (lr.find(w) != string::npos) ++variantHits[w];
+                if (!opt.onlyVariants.empty() && !matchesAny(lr, opt.onlyVariants)) continue;
+                if (!opt.skipVariants.empty() && matchesAny(lr, opt.skipVariants)) continue;
+            }
             if (!excluded.empty() && excluded.count(line.substr(0, pos))) { ++excludedHits; continue; }
 
             string row = line.substr(0, pos + 1) + (opt.rawLabels ? rawLabel : m.cls);
-            ++seen[m.cls];
-            auto& bucket = reservoir[m.cls];
+            string key = opt.balance ? m.cls + "|" + lower(rawLabel) : m.cls;
+            ++seenKey[key];
+            ++seenClass[m.cls];
+            auto& bucket = reservoir[key];
             size_t cap = opt.quota[m.cls];
             if (bucket.size() < cap) {
-                bucket.push_back(row);
+                bucket.push_back({row, rawLabel});
             } else if (cap > 0) {
-                uniform_int_distribution<size_t> dist(0, seen[m.cls] - 1);
+                uniform_int_distribution<size_t> dist(0, seenKey[key] - 1);
                 size_t j = dist(rng);
-                if (j < cap) bucket[j] = row;  // replace a random earlier pick
+                if (j < cap) bucket[j] = {row, rawLabel};  // replace a random earlier pick
             }
         }
         cout << "Processed " << path << "\n";
     }
 
-    vector<string> rows;
-    for (auto& entry : reservoir) {
-        const string& cls = entry.first;
-        vector<string>& bucket = entry.second;
-        cout << cls << ": picked " << bucket.size() << " of " << seen[cls] << "\n";
-        if (bucket.size() < opt.quota[cls])
-            cerr << "WARNING: not enough " << cls << " rows (wanted " << opt.quota[cls]
-                 << "). Did you pass all the files?\n";
-        rows.insert(rows.end(), bucket.begin(), bucket.end());
+    for (const auto& w : opt.onlyVariants) if (!variantHits[w]) cerr << "WARNING: no rows matched variant word '" << w << "'\n";
+    for (const auto& w : opt.skipVariants) if (!variantHits[w]) cerr << "WARNING: no rows matched variant word '" << w << "'\n";
+
+    vector<Picked> chosen;
+    if (!opt.balance) {
+        for (auto& entry : reservoir) chosen.insert(chosen.end(), entry.second.begin(), entry.second.end());
+    } else {
+        map<string, vector<vector<Picked>*>> byClass;
+        for (auto& entry : reservoir) byClass[entry.first.substr(0, entry.first.find('|'))].push_back(&entry.second);
+        for (auto& c : byClass) {
+            vector<vector<Picked>*>& buckets = c.second;
+            stable_sort(buckets.begin(), buckets.end(),
+                        [](const vector<Picked>* x, const vector<Picked>* y) { return x->size() < y->size(); });
+            size_t remaining = opt.quota[c.first];
+            for (size_t i = 0; i < buckets.size(); ++i) {
+                size_t share = remaining / (buckets.size() - i);   // smallest variants first
+                size_t take = min(buckets[i]->size(), share);
+                shuffle(buckets[i]->begin(), buckets[i]->end(), rng);
+                chosen.insert(chosen.end(), buckets[i]->begin(), buckets[i]->begin() + take);
+                remaining -= take;
+            }
+        }
     }
+
+    map<string, size_t> pickedClass, pickedLabel;
+    vector<string> rows;
+    for (const Picked& p : chosen) {
+        rows.push_back(p.row);
+        ++pickedLabel[printable(p.raw)];
+        ++pickedClass[mapLabel(p.raw).cls];
+    }
+    for (const auto& q : opt.quota) {
+        const string& cls = q.first;
+        cout << cls << ": picked " << pickedClass[cls] << " of " << seenClass[cls] << "\n";
+        if (pickedClass[cls] < q.second)
+            cerr << "WARNING: not enough " << cls << " rows (wanted " << q.second
+                 << "). Did you pass all the files?\n";
+    }
+    cout << "Picked by original label:\n";
+    for (const auto& e : pickedLabel) cout << "  " << e.first << ": " << e.second << "\n";
     if (!opt.excludes.empty()) cout << "Skipped " << excludedHits << " rows found in the exclude files\n";
     shuffle(rows.begin(), rows.end(), rng);
 
