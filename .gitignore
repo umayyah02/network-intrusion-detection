@@ -3,5 +3,5 @@
 *.zip
 build/
 data/full/
-*.exe
-data/full/
+.vscode/
+

@@ -1,0 +1,63 @@
+KNN Manhattan, K=1, weighted=0, feature set 'noport' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (600 rows) ===
+Accuracy 0.9833 | macro-F1 0.9828 | FPR 0.0133 (4 of 300 benign flagged) | detection rate 0.9800 | alert precision 0.9866 (298 flagged)
+Prediction time: 31.38 ms
+      BENIGN precision 0.9801  recall 0.9867
+         DoS precision 0.9835  recall 0.9917
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9884  recall 0.9444
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         296           2           1           1
+         DoS           1         119           0           0
+    PortScan           0           0          90           0
+  BruteForce           5           0           0          85
+
+=== data\sample_V.csv (1304 rows) ===
+Accuracy 0.7462 | macro-F1 0.6770 | FPR 0.0183 (11 of 600 benign flagged) | detection rate 0.6094 | alert precision 0.9750 (440 flagged)
+Prediction time: 65.79 ms
+      BENIGN precision 0.6817  recall 0.9817
+         DoS precision 0.6071  recall 0.0576
+    PortScan precision 0.8571  recall 1.0000
+  BruteForce precision 0.9156  recall 0.8378
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         589           8           2           1
+         DoS         236          17          23          19
+    PortScan           0           0         150           0
+  BruteForce          39           3           0         217
+
+=== data\sample_C.csv (9914 rows) ===
+Accuracy 0.9734 | macro-F1 0.8573 | FPR 0.0221 (185 of 8360 benign flagged) | detection rate 0.9575 | alert precision 0.8894 (1673 flagged)
+Prediction time: 503.07 ms
+      BENIGN precision 0.9920  recall 0.9779
+         DoS precision 0.8897  recall 0.9159
+    PortScan precision 0.9702  recall 1.0000
+  BruteForce precision 0.3920  recall 0.9608
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN        8175         104          11          70
+         DoS          64         839           7           6
+    PortScan           0           0         587           0
+  BruteForce           2           0           0          49
+
+=== data\sample_B.csv (499 rows) ===
+Accuracy 0.9820 | macro-F1 0.9830 | FPR 0.0201 (4 of 199 benign flagged) | detection rate 0.9833 | alert precision 0.9866 (299 flagged)
+Prediction time: 26.34 ms
+      BENIGN precision 0.9750  recall 0.9799
+         DoS precision 0.9804  recall 1.0000
+    PortScan precision 0.9901  recall 1.0000
+  BruteForce precision 0.9896  recall 0.9500
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         195           2           1           1
+         DoS           0         100           0           0
+    PortScan           0           0         100           0
+  BruteForce           5           0           0          95
+
+Report each result once. Do not go back and retune on these numbers.
