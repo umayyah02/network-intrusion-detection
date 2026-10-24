@@ -17,10 +17,10 @@ Built by tools/make_sample.cpp (reservoir sampling, fixed seed, fixed rows per c
 | A | data/sample_1000.csv | First sample, kept for comparison | BENIGN 400, DoS 200, PortScan 200, BruteForce 200. No DDoS, no web brute force. |
 | A2 | data/sample_A2.csv | Training | BENIGN 1500, DoS 600 (Hulk, GoldenEye, DDoS), PortScan 450, BruteForce 450 (FTP-Patator, web brute force). Held out: slowloris, Slowhttptest SSH-Patator. |
 | V | data/sample_V.csv | Test only: held-out variants | BENIGN 600, DoS 300 (slowloris, Slowhttptest), PortScan 150, BruteForce 300 (SSH-Patator). |
-| B | data/sample_B.csv | Test only: DDoS and web brute force | BENIGN 200, DoS 100, PortScan 100, BruteForce 100. |
+| B | data/sample_B.csv | Consistency check only, not held out: DDoS and web brute force are in A2 training, and B rows are near-copies of A2 rows, so B is not evidence of generalization | BENIGN 200, DoS 100, PortScan 100, BruteForce 100. |
 | C | data/sample_C.csv | Test only: realistic mix (84% benign) | BENIGN 8424, DoS 936, PortScan 589, BruteForce 51. About 10,000 rows, shared directly and not committed. |
 
-No row of A2, V, B or C is identical to a row in an earlier sample (the exclude list catches exact copies only).
+No row of A2, V, B or C is identical to a row in an earlier sample (the exclude list catches exact copies only). Near-identical rows between A2 and B/C are still possible.
 
 Commands (all CICIDS csv files are passed as input; --raw-labels keeps the original label, the loader maps it):
 
@@ -82,7 +82,7 @@ Scaling: binary columns (only 0/1 in train) stay as they are. Non-negative, non-
 
 Feature selection: drop constant features; rank the rest by Fisher score (between-class / within-class variance); skip a feature whose absolute correlation with an already kept one is above 0.95; keep at most 20. Reason: constant and near-duplicate features add no information and slow down KNN.
 
-prepareLike(p, path) prepares another file (V, C, B) with the same columns, encoder, selected features and scaling taken from the training data. It stops with an error if the columns differ.
+prepareLike(p, path, nullptr) prepares another file (V, C, B) with the same columns, encoder, selected features and scaling taken from the training data. It stops with an error if the columns differ.
 
 ## 6. Selected features (sample A2)
 
@@ -118,8 +118,8 @@ A2 has 2,997 usable rows (BENIGN 1,498, DoS 600, PortScan 449, BruteForce 450), 
 
 PrepareOptions opt;                    // seed 42, 80/20, 20 features, log transform on
 PreparedData p = prepareDataset("data/sample_A2.csv", opt);   // train on p.train, test on p.test
-Dataset v = prepareLike(p, "data/sample_V.csv");              // held-out variants
-Dataset c = prepareLike(p, "data/sample_C.csv");              // realistic mix
+Dataset v = prepareLike(p, "data/sample_V.csv", nullptr);              // held-out variants
+Dataset c = prepareLike(p, "data/sample_C.csv", nullptr);              // realistic mix
 ```
 
 Class indexes: BENIGN = 0, DoS = 1, PortScan = 2, BruteForce = 3. Both models use the same test files. Tune only with cross-validation on p.train; never on V, C or B.
@@ -143,6 +143,6 @@ g++ -std=c++17 -O2 tools/make_sample.cpp -o make_sample
 - Samples are small and balanced; C is 16% attacks, a real network has far fewer.
 - Many rows are near-duplicates, so scores on familiar traffic are optimistic.
 - C has only 51 BruteForce rows, so BruteForce numbers on C are noisy.
-- Slow DoS and SSH-Patator are only partly different from the training attacks (same port 80 or login ports), so V is a fair but not a hard test.
+- Slow DoS and SSH-Patator are only partly different from the training attacks (same port 80 or login ports), so V is hard for slow DoS: both models almost completely miss it (0.3% to 6% recall) and macro-F1 on V is 0.63 to 0.68.
 - Only four classes are modelled; other CICIDS attacks are skipped.
 - Sampling happens before cleaning, so class counts shift slightly after cleaning.
