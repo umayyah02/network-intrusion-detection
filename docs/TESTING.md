@@ -18,7 +18,7 @@ Expected last line: `All data-layer tests passed`.
 | Test file | What it checks | Run it with (planned) |
 |---|---|---|
 | `tests/testmodels.cpp` (done) | Decision Tree, KNN and `evaluate()` on tiny hand-made data with known answers; bad input gives clear errors | see section 2a |
-| `tests/testpipeline.cpp` | Whole chain: CSV, then `prepareDataset`, then both models, then metrics. Both models use the same test split | same, plus `data/sample_A2.csv` |
+| `tests/testpipeline.cpp` (done) | Whole chain on `data/sample_A2.csv`: clean, split, scale, train both models, predict, metrics. Checks the split, no leakage, same seed gives same split, both models beat a lazy baseline, and a second file (`sample_B.csv`) works | see section 2b |
 | `tests/testbadinput.cpp` | Bad input in section 3 gives a clear error, not a crash | same |
 
 ### 2a. Run the model tests
@@ -28,6 +28,16 @@ g++ -std=c++17 -Wall -Wextra -Iinclude tests/testmodels.cpp src/ml/knn.cpp src/m
 ./test_models
 ```
 On Windows PowerShell, run `.\test_models.exe`. Expected last line: `All model and metrics tests passed`.
+
+### 2b. Run the pipeline test
+
+Run it from the **project root** (it reads files in `data/`).
+
+```bash
+g++ -std=c++17 -Wall -Wextra -Iinclude tests/testpipeline.cpp src/ml/knn.cpp src/ml/decision_tree.cpp src/data/cleaner.cpp src/data/csv_loader.cpp src/data/dataset.cpp src/data/preprocessor.cpp -o test_pipeline
+./test_pipeline
+```
+On Windows PowerShell, run `.\test_pipeline.exe`. Expected last line: `All pipeline tests passed`.
 
 ## 3. Bad input checklist
 

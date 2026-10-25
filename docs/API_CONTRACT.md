@@ -1,6 +1,6 @@
 # API Contract (DRAFT)
 
-Status: **draft for team review.** Nothing here is final until Member 2 (backend) and Member 3 (frontend) both agree. When a route is really implemented, change its status to **Implemented**.
+Status: **draft for team review.** Nothing here is final until Member 2 (backend) and Member 3 (frontend) both agree.
 
 Owner: Member 4 (Integration and Testing).
 
