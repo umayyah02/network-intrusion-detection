@@ -2,6 +2,8 @@
 
 Owner: Member 4 (Integration and Testing).
 
+Tests use plain checks with no extra library.
+
 ## 1. Run the existing data tests
 
 From the project root:
@@ -19,7 +21,7 @@ Expected last line: `All data-layer tests passed`.
 |---|---|---|
 | `tests/testmodels.cpp` (done) | Decision Tree, KNN and `evaluate()` on tiny hand-made data with known answers; bad input gives clear errors | see section 2a |
 | `tests/testpipeline.cpp` (done) | Whole chain on `data/sample_A2.csv`: clean, split, scale, train both models, predict, metrics. Checks the split, no leakage, same seed gives same split, both models beat a lazy baseline, and a second file (`sample_B.csv`) works | see section 2b |
-| `tests/testbadinput.cpp` | Bad input in section 3 gives a clear error, not a crash | same |
+| `tests/testbadinput.cpp` (done) | Bad input in section 3: clear errors or skipped-and-counted rows, never a crash | see section 2c |
 
 ### 2a. Run the model tests
 
@@ -38,6 +40,20 @@ g++ -std=c++17 -Wall -Wextra -Iinclude tests/testpipeline.cpp src/ml/knn.cpp src
 ./test_pipeline
 ```
 On Windows PowerShell, run `.\test_pipeline.exe`. Expected last line: `All pipeline tests passed`.
+
+### 2c. Run the bad-input tests
+
+Run from the **project root**. The tests make small temporary CSV files and delete them again.
+
+```bash
+g++ -std=c++17 -Wall -Wextra -Iinclude tests/testbadinput.cpp src/data/cleaner.cpp src/data/csv_loader.cpp src/data/dataset.cpp src/data/preprocessor.cpp -o test_badinput
+./test_badinput
+```
+On Windows PowerShell, run `.\test_badinput.exe`. Expected last line: `All bad-input tests passed`. Lines starting with `KNOWN ISSUE` are weak spots to discuss with Member 1; they do not fail the run.
+
+Known issues found so far:
+1. A CSV with no label column stops with "Not enough usable rows to split (0)". It never says the label column is missing (the loader treats the last column as the label).
+2. A very small CSV (4 rows) is accepted but gives an empty test set, so any score would be meaningless.
 
 ## 3. Bad input checklist
 
