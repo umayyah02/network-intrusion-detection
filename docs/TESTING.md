@@ -2,8 +2,6 @@
 
 Owner: Member 4 (Integration and Testing).
 
-The project has no CMake yet, so everything builds with `g++` (C++17). Tests use plain checks with no extra library, the same style as `tests/testdata.cpp`.
-
 ## 1. Run the existing data tests
 
 From the project root:
@@ -19,10 +17,17 @@ Expected last line: `All data-layer tests passed`.
 
 | Test file | What it checks | Run it with (planned) |
 |---|---|---|
-| `tests/testmodels.cpp` | Decision Tree and KNN on tiny hand-made data with a known answer; K bigger than the data; empty data throws | add `src/ml/knn.cpp src/ml/decision_tree.cpp` to the command above |
-| (same file) | `evaluate()` in `include/eval_utils.h` gives the right accuracy, precision, recall and confusion matrix on a small example we can calculate by hand | same |
+| `tests/testmodels.cpp` (done) | Decision Tree, KNN and `evaluate()` on tiny hand-made data with known answers; bad input gives clear errors | see section 2a |
 | `tests/testpipeline.cpp` | Whole chain: CSV, then `prepareDataset`, then both models, then metrics. Both models use the same test split | same, plus `data/sample_A2.csv` |
 | `tests/testbadinput.cpp` | Bad input in section 3 gives a clear error, not a crash | same |
+
+### 2a. Run the model tests
+
+```bash
+g++ -std=c++17 -Wall -Wextra -Iinclude tests/testmodels.cpp src/ml/knn.cpp src/ml/decision_tree.cpp src/data/cleaner.cpp src/data/csv_loader.cpp src/data/dataset.cpp src/data/preprocessor.cpp -o test_models
+./test_models
+```
+On Windows PowerShell, run `.\test_models.exe`. Expected last line: `All model and metrics tests passed`.
 
 ## 3. Bad input checklist
 
