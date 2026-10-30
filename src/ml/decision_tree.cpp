@@ -65,6 +65,7 @@ int DecisionTree::build(const Dataset& d, vector<size_t> idx, size_t depth) {
     nodes_[id].n = n;
     nodes_[id].impurity = gini(counts, n);
     nodes_[id].label = majority(counts);
+    nodes_[id].conf = n ? static_cast<double>(counts[nodes_[id].label]) / static_cast<double>(n) : 1.0;
     depth_ = max(depth_, depth);
 
     const double parentImpurity = nodes_[id].impurity;
@@ -124,13 +125,15 @@ int DecisionTree::build(const Dataset& d, vector<size_t> idx, size_t depth) {
     return id;
 }
 
-int DecisionTree::predict(const vector<double>& x) const {
+int DecisionTree::predict(const vector<double>& x) const { return predictWithConfidence(x).label; }
+
+Prediction DecisionTree::predictWithConfidence(const vector<double>& x) const {
     if (nodes_.empty()) throw runtime_error("DecisionTree::predict: call fit() first");
     if (x.size() != dim_) throw invalid_argument("DecisionTree::predict: wrong feature count");
     int id = 0;
     while (nodes_[id].feature >= 0)
         id = x[nodes_[id].feature] <= nodes_[id].threshold ? nodes_[id].left : nodes_[id].right;
-    return nodes_[id].label;
+    return Prediction{nodes_[id].label, nodes_[id].conf};
 }
 
 vector<int> DecisionTree::predictAll(const vector<vector<double>>& X) const {

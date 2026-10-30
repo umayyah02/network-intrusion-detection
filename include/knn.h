@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <vector>
 #include "dataset.h"
+#include "prediction.h"
 
 struct KnnOptions {
     size_t k = 5;                    // number of neighbours (clamped to training size)
@@ -22,6 +23,8 @@ public:
 
     // Predicts one class index. x must have the same width as the training rows.
     int predict(const std::vector<double>& x) const;
+    // Same vote, plus confidence = (neighbours voting for the winner) / K.
+    Prediction predictWithConfidence(const std::vector<double>& x) const;
     std::vector<int> predictAll(const std::vector<std::vector<double>>& X) const;
 
     const KnnOptions& options() const { return opt_; }
