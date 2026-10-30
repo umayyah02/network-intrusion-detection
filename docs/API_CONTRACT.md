@@ -1,121 +1,146 @@
-# API Contract (DRAFT)
 
-Status: **draft for team review.** Nothing here is final until Member 2 (backend) and Member 3 (frontend) both agree.
+# API Contract
 
-Owner: Member 4 (Integration and Testing).
+**Version:** 0.2
+**Status:** Draft — for team review  
+**Purpose:** Define communication between the INIDS frontend and backend.
 
-## 1. Basics
+## 1. General Rules
 
-- Base URL (local development): `http://localhost:8080` (port to be agreed)
-- Format: JSON in, JSON out (the CSV upload is `multipart/form-data`)
-- Model names: `decision_tree` or `knn`
-- Class names and order (same as `include/dataset.h`): `BENIGN` = 0, `DoS` = 1, `PortScan` = 2, `BruteForce` = 3
-- Every prediction has `label` (one of the four class names) and `isMalicious` (`false` only for `BENIGN`).
-- `confidence` is a number from 0 to 1. **The models do not output confidence yet** (they return only a class index), so until Member 2 adds it, `confidence` is `null`.
-- The frontend must show real backend output only, never hardcoded predictions.
+- Base URL: `http://localhost:8080` (to be confirmed by the backend developer).
+- Data format: JSON, except CSV uploads, which use `multipart/form-data`.
+- The frontend must display real backend results, not hardcoded demo predictions.
+- If an endpoint needs to change or a new endpoint is required, notify the integration/testing member before changing the contract.
 
-## 2. Routes
+## 2. Model Classes
 
-| Route | Purpose | Status |
-|---|---|---|
-| `GET /api/health` | Is the backend running? | Draft |
-| `POST /api/dataset` | Upload a CSV dataset | Draft |
-| `GET /api/dataset/summary` | Rows, columns, class counts | Draft |
-| `POST /api/detect` | Start training and prediction with a chosen model | Draft |
-| `GET /api/detect/status` | Progress of the running job | Draft |
-| `GET /api/threats` | Detected threats (filters: `search`, `attackType`) | Draft |
-| `GET /api/metrics` | Accuracy, precision, recall, F1, confusion matrix | Draft |
-| `GET /api/complexity` | Timing results from the experiments | Draft |
+The backend uses these four classes:
 
-## 3. Examples
+| Class | Label |
+|---|---:|
+| BENIGN | 0 |
+| DoS | 1 |
+| PortScan | 2 |
+| BruteForce | 3 |
 
-### GET /api/health
-```json
-{ "status": "ok" }
-```
+For the dashboard, the proposed mapping is:
+- `BENIGN` → normal (`isMalicious: false`)
+- `DoS`, `PortScan`, `BruteForce` → malicious (`isMalicious: true`)
 
-### POST /api/dataset
-Request: `multipart/form-data`, one field `file` (a `.csv`). Response `200`:
+The backend and frontend developers must agree on this mapping.
+
+## 3. API Endpoints
+
+All endpoints below are proposed. The backend developer must confirm which ones are implemented.
+
+### Required core endpoints
+
+**GET `/api/health`**
+
+Checks whether the backend is running.
+
+Example response:
 ```json
 {
-  "rows": 2997,
-  "columns": 20,
-  "classCounts": { "BENIGN": 1498, "DoS": 600, "PortScan": 449, "BruteForce": 450 }
+  "status": "ok"
 }
 ```
 
-### GET /api/dataset/summary
-Response `200`: same shape as the upload response.
+**GET `/api/datasets`**
 
-### POST /api/detect
-Request:
-```json
-{ "model": "decision_tree" }
-```
-Response `202`:
-```json
-{ "jobId": "abc123" }
-```
+Returns the available datasets.
 
-### GET /api/detect/status
-```json
-{ "jobId": "abc123", "state": "running", "progress": 0.4 }
-```
-`state` is `idle`, `running`, `done`, or `failed`. When `failed`, an `error` object (section 4) is included.
-
-### GET /api/threats
-Optional query: `?search=...&attackType=DoS&page=1&pageSize=50`. Response `200`:
+Example response:
 ```json
 {
-  "total": 1,
-  "items": [
+  "datasets": [
     {
-      "id": 1,
-      "label": "DoS",
-      "isMalicious": true,
-      "confidence": null,
-      "destinationPort": 80
+      "name": "sample.csv",
+      "records": 3000,
+      "features": 20,
+      "status": "Loaded"
     }
   ]
 }
 ```
-Source and destination IP, time and severity appear only if the data provides them. They are not in the current prepared data, so they are optional fields.
 
-### GET /api/metrics
-Query: `?model=decision_tree` (or `knn`). Matches the `Metrics` struct in `include/eval_utils.h`. Response `200`:
+**POST `/api/dataset`**
+
+Uploads and loads a CSV dataset using `multipart/form-data`.
+
+The response should report the dataset name, number of rows, number of columns, and any skipped rows.
+
+**POST `/api/detect`**
+
+Starts detection using the selected model.
+
+Request:
 ```json
 {
-  "model": "decision_tree",
-  "accuracy": 0.98,
-  "macroF1": 0.97,
-  "falsePositiveRate": 0.01,
-  "detectionRate": 0.99,
-  "alertPrecision": 0.98,
-  "classes": ["BENIGN", "DoS", "PortScan", "BruteForce"],
-  "precision": [0.99, 0.98, 0.97, 0.96],
-  "recall": [0.99, 0.98, 0.97, 0.96],
-  "confusionMatrix": [[298, 1, 1, 0], [1, 118, 0, 1], [1, 0, 88, 1], [0, 1, 1, 88]]
+  "model": "decision_tree"
 }
 ```
-The numbers above are an example only. `confusionMatrix[actual][predicted]` uses the order of `classes`.
 
-### GET /api/complexity
+Allowed model names: `decision_tree`, `knn`.
+
+If detection runs as a background job, return HTTP `202` with a `jobId`. The backend must then provide the status endpoint below. Otherwise, the backend developer should confirm the synchronous response format.
+
+**GET `/api/detect/status`**
+
+Optional if detection runs in the background. Returns the job ID, state (`idle`, `running`, `done`, or `failed`), progress, and an error message if it fails.
+
+**GET `/api/detections`**
+
+Returns prediction results for the frontend table. Support filtering by `all`, `threats`, or `normal` if required by the UI.
+
+Each result should include:
+- `id`
+- `label`
+- `isMalicious`
+
+Only include additional fields when the dataset or backend actually provides them.
+
+### Additional endpoints — confirm against the UI and project requirements
+
+**GET `/api/summary`**
+
+Returns total records, normal records, malicious records, and class counts if required by the dashboard.
+
+**GET `/api/metrics`**
+
+Returns evaluation metrics and the confusion matrix if required by the evaluation page. Metrics must come from actual model evaluation, not example values.
+
+The confusion matrix must use the class order defined in Section 2, with rows representing actual classes and columns representing predicted classes.
+
+**GET `/api/complexity`**
+
+Returns measured training time, prediction time, and memory usage for performance analysis, if required by the project requirements. Do not invent measurements; use `null` when a value is unavailable.
+
+## 4. Error Responses
+
+Use a consistent error format:
+
 ```json
-{ "results": [ { "model": "knn", "rows": 5000, "trainSeconds": 0.01, "predictSeconds": 3.2 } ] }
+{
+  "error": {
+    "code": "INVALID_CSV",
+    "message": "The uploaded CSV file is invalid."
+  }
+}
 ```
 
-## 4. Error format
+Use appropriate HTTP status codes:
+- `400` — invalid input or CSV
+- `404` — resource not found
+- `409` — operation conflicts with the current state
+- `500` — internal server error
 
-Every error uses one shape, with a matching HTTP status (`400` bad input, `404` not found, `409` wrong state, `500` server error):
-```json
-{ "error": { "code": "INVALID_CSV", "message": "Column 'Label' is missing." } }
-```
-Codes (draft): `INVALID_CSV`, `MISSING_COLUMN`, `EMPTY_FILE`, `FILE_TOO_LARGE`, `UNKNOWN_MODEL`, `NO_DATASET_LOADED`, `JOB_ALREADY_RUNNING`, `INTERNAL_ERROR`.
+The backend developer should document any additional error codes that are implemented.
 
-## 5. Open decisions (team must settle)
+## 5. Important Notes
 
-1. Port and how the frontend reaches the backend (dev proxy or CORS).
-2. Upload a CSV from the browser, or load a file path already on the machine?
-3. Background job with status polling (above), or one request that waits?
-4. Models need a way to output confidence (Member 2). Until then it is `null`.
-5. If no HTTP library is allowed: replace the routes with JSON files the frontend loads (same shapes).
+- The API endpoints are a proposed interface, not proof that the endpoints already exist.
+- Do not invent prediction confidence, severity, source IP, timestamps, or other unavailable data.
+- The frontend should show `N/A` for unavailable display values, or omit those fields if they are not needed.
+- The backend developer should notify the integration/testing member if more endpoints or different response fields are needed.
+- The integration/testing member will update this contract after the team agrees on the final implementation.
