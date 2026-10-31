@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include "dataset.h"
+#include "prediction.h"
 
 struct TreeOptions {
     size_t maxDepth = 8;               // 0 = unlimited; root is depth 0
@@ -23,6 +24,8 @@ public:
 
     // Class index for one row. A row goes left when x[feature] <= threshold.
     int predict(const std::vector<double>& x) const;
+    // Same walk, plus confidence = share of the predicted class among the training rows in the leaf.
+    Prediction predictWithConfidence(const std::vector<double>& x) const;
     std::vector<int> predictAll(const std::vector<std::vector<double>>& X) const;
 
     size_t depth() const { return depth_; }       // depth of the deepest leaf
@@ -46,6 +49,7 @@ private:
         double threshold = 0;
         int left = -1, right = -1;
         int label = 0;          // majority class (used by leaves, kept for inner nodes too)
+        double conf = 1.0;      // share of `label` among the n rows that reached this node
         size_t n = 0;           // training rows that reached this node
         double impurity = 0;    // Gini of those rows
         double decrease = 0;    // n*gini - (nl*gini_l + nr*gini_r), in row units (inner nodes)
