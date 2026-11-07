@@ -458,7 +458,88 @@ json App::datasetSummary() {
     std::lock_guard<std::mutex> l(m_);
     return summaryLocked();
 }
+json App::datasetPreview(size_t limit) {
+    if (limit == 0 || limit > 100)
+        throw ApiError(400, "BAD_REQUEST", "Preview limit must be between 1 and 100.");
 
+    std::string name;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        if (!data_)
+            throw ApiError(409, "NO_DATASET", "Load a dataset first.");
+        name = datasetName_;
+    }
+
+    std::ifstream file(resolve(name), std::ios::binary);
+    if (!file)
+        throw ApiError(500, "READ_FAILED", "Could not open the dataset CSV.");
+
+    json columns = json::array();
+    json rows = json::array();
+    std::vector<std::string> fields;
+    std::string field;
+    bool quoted = false;
+    bool firstRow = true;
+    bool hasContent = false;
+    size_t count = 0;
+    char ch;
+
+    auto finishRow = [&]() {
+        fields.push_back(field);
+        field.clear();
+
+        if (firstRow) {
+            for (const std::string& value : fields)
+                columns.push_back(value);
+            firstRow = false;
+        } else {
+            rows.push_back(fields);
+            ++count;
+        }
+
+        fields.clear();
+        hasContent = false;
+    };
+
+    while (file.get(ch) && count < limit) {
+        if (ch == '"') {
+            if (quoted && file.peek() == '"') {
+                field += '"';
+                file.get();
+            } else {
+                quoted = !quoted;
+            }
+        } else if (ch == ',' && !quoted) {
+            fields.push_back(field);
+            field.clear();
+        } else if ((ch == '\n' || ch == '\r') && !quoted) {
+            if (ch == '\r' && file.peek() == '\n')
+                file.get();
+            finishRow();
+        } else {
+            field += ch;
+            hasContent = true;
+        }
+    }
+
+    if (quoted)
+        throw ApiError(400, "INVALID_CSV", "Unclosed quoted field in CSV preview.");
+
+    if (count < limit && (hasContent || !field.empty() || !fields.empty()))
+        finishRow();
+
+    if (columns.empty())
+        throw ApiError(400, "INVALID_CSV", "CSV header is missing.");
+
+    json result = json::object();
+    result["datasetName"] = name;
+    result["columns"] = columns;
+    result["rows"] = rows;
+    result["previewRows"] = rows.size();
+    result["totalRows"] = nullptr;
+
+    return result;
+}
 // ---------- jobs ----------
 int App::beginJobLocked(const std::string& type, const std::string& model) {
     if (job_.state == "running")

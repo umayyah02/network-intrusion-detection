@@ -160,6 +160,27 @@ int main(int argc, char** argv) {
     svr.Get("/api/dataset/summary", guarded([&](const httplib::Request&, httplib::Response& res) {
                 sendJson(res, 200, app.datasetSummary());
             }));
+    svr.Get("/api/dataset/preview", guarded([&](const httplib::Request& req, httplib::Response& res) {
+        size_t limit = 20;
+
+        if (req.has_param("limit")) {
+            const std::string value = req.get_param_value("limit");
+
+            if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos)
+                throw ApiError(400, "BAD_REQUEST", "limit must be an integer between 1 and 100.");
+
+            try {
+                const unsigned long long parsed = std::stoull(value);
+                if (parsed < 1 || parsed > 100)
+                    throw ApiError(400, "BAD_REQUEST", "limit must be between 1 and 100.");
+                limit = static_cast<size_t>(parsed);
+            } catch (const std::out_of_range&) {
+                throw ApiError(400, "BAD_REQUEST", "limit must be between 1 and 100.");
+            }
+        }
+
+        sendJson(res, 200, app.datasetPreview(limit));
+    }));
 
     svr.Get("/api/dataset/files", guarded([&](const httplib::Request&, httplib::Response& res) {
                 sendJson(res, 200, app.listFiles());
