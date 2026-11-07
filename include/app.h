@@ -84,6 +84,7 @@ public:
     // Saves an uploaded CSV under <data dir>/uploads and returns its relative path.
     std::string saveUpload(const std::string& filename, const std::string& content);
     json datasetSummary();
+    json datasetPreview(size_t limit = 20);
 
     json startDetect(const json& body);      // 202 + job
     json startComplexity(const json& body);  // 202 + job
