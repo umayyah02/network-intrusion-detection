@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   ComposedChart,
 } from 'recharts'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080'
 
 
 
@@ -124,7 +125,7 @@ function Dashboard() {
         setDashboardError('')
 
         const response = await fetch(
-          'http://127.0.0.1:8080/api/dashboard?model=decision_tree',
+          `${API_BASE_URL}/api/dashboard?model=decision_tree`,
           { signal: controller.signal }
         )
 
@@ -306,7 +307,7 @@ async function fetchDatasetPreview() {
 
   try {
     const response = await fetch(
-      'http://127.0.0.1:8080/api/dataset/preview?limit=20'
+      `${API_BASE_URL}/api/dataset/preview?limit=20`
     )
 
     if (!response.ok) {
@@ -332,7 +333,7 @@ useEffect(() => {
 
   async function loadDatasets() {
     try {
-      const response = await fetch('http://127.0.0.1:8080/api/datasets', {
+      const response = await fetch(`${API_BASE_URL}/api/datasets`, {
         signal: controller.signal,
       })
 
@@ -348,7 +349,7 @@ useEffect(() => {
       )
       setDataset(loaded?.name ?? '')
       const summaryResponse = await fetch(
-        'http://127.0.0.1:8080/api/dataset/summary',
+        `${API_BASE_URL}/api/dataset/summary`,
         { signal: controller.signal }
       )
 
@@ -378,7 +379,7 @@ async function handleLoadDataset() {
   setLoadMessage('Loading dataset...')
 
   try {
-    const response = await fetch('http://127.0.0.1:8080/api/dataset', {
+    const response = await fetch(`${API_BASE_URL}/api/dataset`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -393,7 +394,7 @@ async function handleLoadDataset() {
       )
     }
 
-    const refresh = await fetch('http://127.0.0.1:8080/api/datasets')
+    const refresh = await fetch(`${API_BASE_URL}/api/datasets`)
 
     if (!refresh.ok) {
       throw new Error(`Refresh error: ${refresh.status}`)
@@ -402,7 +403,7 @@ async function handleLoadDataset() {
     const data = await refresh.json()
     setDatasets(data.datasets)
     const summaryResponse = await fetch(
-      'http://127.0.0.1:8080/api/dataset/summary'
+      `${API_BASE_URL}/api/dataset/summary`
     )
 
     if (!summaryResponse.ok) {
@@ -635,7 +636,7 @@ function DetectionPage() {
   
 async function fetchDetectionResults() {
   try {
-    const response = await fetch('http://127.0.0.1:8080/api/detections')
+    const response = await fetch(`${API_BASE_URL}/api/detections`)
 
     if (!response.ok) {
       throw new Error(`Detections API error: ${response.status}`)
@@ -653,7 +654,7 @@ async function fetchDetectionResults() {
   async function checkDetectionStatus() {
     try {
       const response = await fetch(
-        'http://127.0.0.1:8080/api/detect/status'
+        `${API_BASE_URL}/api/detect/status`
       )
 
       if (!response.ok) {
@@ -696,7 +697,7 @@ async function fetchDetectionResults() {
     setDemoMessage('Starting detection...')
 
     try {
-      const response = await fetch('http://127.0.0.1:8080/api/detect', {
+      const response = await fetch(`${API_BASE_URL}/api/detect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -882,7 +883,7 @@ const filteredThreats = threats.filter((threat) => {
     async function loadThreats() {
       try {
         const response = await fetch(
-          'http://127.0.0.1:8080/api/detections',
+          `${API_BASE_URL}/api/detections`,
           { signal: controller.signal }
         )
 
@@ -1187,7 +1188,7 @@ function ResultsPage() {
 
     async function loadEvaluation() {
       try {
-        const response = await fetch('http://127.0.0.1:8080/api/metrics', {
+        const response = await fetch(`${API_BASE_URL}/api/metrics`, {
           signal: controller.signal
         })
         if (!response.ok) {
@@ -1385,7 +1386,7 @@ function ComplexityPage() {
   const [error, setError] = useState('')
 
   async function loadComplexity() {
-    const response = await fetch('http://127.0.0.1:8080/api/complexity')
+    const response = await fetch(`${API_BASE_URL}/api/complexity`)
 
     if (!response.ok) {
       throw new Error(`Complexity API error: ${response.status}`)
@@ -1401,7 +1402,7 @@ function ComplexityPage() {
 
     async function load() {
       try {
-        const response = await fetch('http://127.0.0.1:8080/api/complexity')
+        const response = await fetch(`${API_BASE_URL}/api/complexity`)
 
         if (!response.ok) {
           throw new Error(`Complexity API error: ${response.status}`)
@@ -1430,7 +1431,7 @@ function ComplexityPage() {
 
     try {
       const response = await fetch(
-        'http://127.0.0.1:8080/api/complexity/run',
+        `${API_BASE_URL}/api/complexity/run`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

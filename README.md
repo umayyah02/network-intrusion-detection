@@ -33,8 +33,8 @@ cd network-intrusion-detection
 Requires Node.js and npm.
 
 ```bash
-cd frontend
-npm install
+cd gui
+npm ci
 npm run dev
 ```
 
