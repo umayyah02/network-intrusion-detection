@@ -4,4 +4,6 @@
 build/
 data/full/
 .vscode/
-
+.testdata.exe
+.tune_knn.exe
+.tune_tree.exe

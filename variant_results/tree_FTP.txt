@@ -1,0 +1,64 @@
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'all' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 12, 91 nodes, 46 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Bwd Packet Length Std <= 1.658:
+  if Packet Length Mean <= -0.777:
+    if Bwd Packet Length Min <= 0.109:
+      ... (subtree, 402 rows, mostly BENIGN)
+    else:
+      -> PortScan  (351 rows)
+  else:
+    if Bwd Packets/s <= -0.954:
+      ... (subtree, 181 rows, mostly BENIGN)
+    else:
+      ... (subtree, 945 rows, mostly BENIGN)
+else:
+  if Destination Port <= -0.233:
+    -> DoS  (336 rows)
+  else:
+    -> BENIGN  (2 rows)
+
+Feature importance (share of total Gini decrease):
+  Bwd Packet Length Std       0.284
+  Packet Length Mean          0.234
+  Bwd Packet Length Min       0.182
+  Flow IAT Std                0.130
+  Destination Port            0.056
+  Bwd Packets/s               0.046
+  Init_Win_bytes_backward     0.021
+  Init_Win_bytes_forward      0.016
+  Flow Duration               0.016
+  min_seg_size_forward        0.006
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9766 | macro-F1 0.9716 | FPR 0.0267 (8 of 300 benign flagged) | detection rate 0.9804 | alert precision 0.9690 (258 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9832  recall 0.9733
+         DoS precision 0.9672  recall 0.9833
+    PortScan precision 0.9783  recall 1.0000
+  BruteForce precision 0.9545  recall 0.9333
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         292           4           2           2
+         DoS           2         118           0           0
+    PortScan           0           0          90           0
+  BruteForce           3           0           0          42
+
+=== data\held_FTP.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0000 | alert precision 0.0000 (0 flagged)
+Prediction time: 0.01 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         225           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
