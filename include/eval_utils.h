@@ -24,6 +24,10 @@ inline const char* const kDuration = "Flow Duration";
 //   noport    dropColumns = {"Destination Port"}                    (selection re-runs)
 //   portonly  keepOnlyColumns = {"Destination Port"}                (baseline)
 //   portdur   keepOnlyColumns = {"Destination Port","Flow Duration"} (baseline)
+//   notcp     dropColumns = the three TCP-setup columns (they describe the sending machine,
+//             so the models may learn the attacker instead of the attack; a hypothesis to test)
+//   top5      selection keeps at most 5 features (maxFeatures = 5)
+//   top10     selection keeps at most 10 features (maxFeatures = 10)
 inline PrepareOptions optionsFor(const std::string& set) {
     PrepareOptions o;
     if (set == "all") {
@@ -33,9 +37,15 @@ inline PrepareOptions optionsFor(const std::string& set) {
         o.keepOnlyColumns = {kPort};
     } else if (set == "portdur") {
         o.keepOnlyColumns = {kPort, kDuration};
+    } else if (set == "notcp") {
+        o.dropColumns = {"Init_Win_bytes_forward", "Init_Win_bytes_backward", "min_seg_size_forward"};
+    } else if (set == "top5") {
+        o.maxFeatures = 5;
+    } else if (set == "top10") {
+        o.maxFeatures = 10;
     } else {
         throw std::invalid_argument("unknown feature set '" + set +
-                                    "' (use all, noport, portonly or portdur)");
+                                    "' (use all, noport, portonly, portdur, notcp, top5 or top10)");
     }
     return o;
 }

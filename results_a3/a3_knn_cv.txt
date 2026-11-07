@@ -1,0 +1,38 @@
+
+##### feature set 'all': 20 features, 5-fold stratified CV on 3263 training rows (test split not used)
+metric     weighted K   macroF1  acc      FPR      detect   recall per class
+Manhattan  no       1   0.9700   0.9694   0.0432   0.9826   0.9568  0.9850  1.0000  0.9592  
+Manhattan  no       3   0.9678   0.9675   0.0438   0.9808   0.9562  0.9799  0.9975  0.9592  
+Manhattan  no       5   0.9620   0.9623   0.0475   0.9742   0.9525  0.9787  0.9950  0.9399  
+Manhattan  no       7   0.9590   0.9589   0.0507   0.9712   0.9493  0.9724  0.9950  0.9378  
+Manhattan  no       9   0.9589   0.9586   0.0507   0.9700   0.9493  0.9712  0.9950  0.9378  
+Manhattan  no       11  0.9566   0.9556   0.0563   0.9688   0.9437  0.9674  0.9950  0.9421  
+Manhattan  no       15  0.9483   0.9467   0.0657   0.9633   0.9343  0.9499  0.9950  0.9421  
+Manhattan  yes      1   0.9700   0.9694   0.0432   0.9826   0.9568  0.9850  1.0000  0.9592  
+Manhattan  yes      3   0.9671   0.9669   0.0469   0.9820   0.9531  0.9825  1.0000  0.9592  
+Manhattan  yes      5   0.9658   0.9657   0.0475   0.9796   0.9525  0.9825  1.0000  0.9528  
+Manhattan  yes      7   0.9650   0.9648   0.0500   0.9802   0.9500  0.9812  1.0000  0.9571  
+Manhattan  yes      9   0.9649   0.9648   0.0494   0.9796   0.9506  0.9812  1.0000  0.9549  
+Manhattan  yes      11  0.9643   0.9638   0.0519   0.9796   0.9481  0.9799  1.0000  0.9592  
+Manhattan  yes      15  0.9617   0.9608   0.0563   0.9778   0.9437  0.9787  1.0000  0.9549  
+Euclidean  no       1   0.9718   0.9718   0.0394   0.9838   0.9606  0.9862  1.0000  0.9614  
+Euclidean  no       3   0.9661   0.9654   0.0482   0.9796   0.9518  0.9787  0.9975  0.9614  
+Euclidean  no       5   0.9577   0.9574   0.0550   0.9724   0.9450  0.9737  0.9950  0.9399  
+Euclidean  no       7   0.9565   0.9559   0.0525   0.9663   0.9475  0.9649  0.9950  0.9356  
+Euclidean  no       9   0.9552   0.9546   0.0532   0.9645   0.9468  0.9612  0.9950  0.9356  
+Euclidean  no       11  0.9508   0.9494   0.0538   0.9567   0.9462  0.9386  0.9950  0.9399  
+Euclidean  no       15  0.9382   0.9359   0.0688   0.9483   0.9312  0.9148  0.9950  0.9378  
+Euclidean  yes      1   0.9718   0.9718   0.0394   0.9838   0.9606  0.9862  1.0000  0.9614  
+Euclidean  yes      3   0.9673   0.9672   0.0475   0.9826   0.9525  0.9850  1.0000  0.9592  
+Euclidean  yes      5   0.9655   0.9651   0.0507   0.9820   0.9493  0.9812  1.0000  0.9614  
+Euclidean  yes      7   0.9643   0.9635   0.0525   0.9802   0.9475  0.9787  1.0000  0.9614  
+Euclidean  yes      9   0.9640   0.9635   0.0525   0.9802   0.9475  0.9812  1.0000  0.9571  
+Euclidean  yes      11  0.9633   0.9629   0.0532   0.9796   0.9468  0.9812  1.0000  0.9549  
+Euclidean  yes      15  0.9627   0.9620   0.0538   0.9784   0.9462  0.9774  1.0000  0.9571  
+Best for 'all' by macro-F1 (ties -> lower FPR): Euclidean, K=1, weighted=0 (macro-F1 0.9718, FPR 0.0394)
+  Final run: tune_knn data\sample_A3.csv final all 2.0000 1 0 [other.csv ...]
+
+Class order: BENIGN  DoS  PortScan  BruteForce  
+If two rows are within about 0.01 macro-F1, prefer the simpler setting.
+'portonly' and 'portdur' are baselines: they show how much a trivial model gets.
+Results saved to knn_cv_results.csv

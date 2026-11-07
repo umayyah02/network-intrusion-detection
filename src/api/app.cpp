@@ -523,7 +523,7 @@ static ModelSpec parseSpec(const std::string& model, const json& rawParams) {
     if (model == kKnn) {
         rejectUnknown(params, {"k", "p", "distanceWeighted"}, "params.");
         s.knn.k = static_cast<size_t>(paramInt(params, "k", 1, 1, 10000));
-        s.knn.p = paramNum(params, "p", 1.0, 1.0, 10.0);
+        s.knn.p = paramNum(params, "p", 2.0, 1.0, 10.0);
         s.knn.distanceWeighted = paramBool(params, "distanceWeighted", false);
         s.params["k"] = s.knn.k;
         s.params["p"] = s.knn.p;

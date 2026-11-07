@@ -1,0 +1,2347 @@
+##### KNN notcp held-out Hulk 
+KNN Manhattan, K=1, weighted=0, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9839 | macro-F1 0.9833 | FPR 0.0200 (6 of 300 benign flagged) | detection rate 0.9885 | alert precision 0.9772 (263 flagged)
+Prediction time: 22.76 ms
+      BENIGN precision 0.9899  recall 0.9800
+         DoS precision 0.9753  recall 0.9875
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9670  recall 0.9778
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         294           2           1           3
+         DoS           1          79           0           0
+    PortScan           0           0          90           0
+  BruteForce           2           0           0          88
+
+=== data\held_Hulk.csv (200 rows) ===
+Accuracy 0.7600 | macro-F1 0.8636 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.7600 | alert precision 1.0000 (152 flagged)
+Prediction time: 8.10 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.7600
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          48         152           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE notcp held-out Hulk 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 14, 99 nodes, 50 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Bwd Packets/s <= 1.271:
+  if Bwd Packet Length Std <= 1.952:
+    if Average Packet Size <= -0.228:
+      ... (subtree, 707 rows, mostly BruteForce)
+    else:
+      ... (subtree, 890 rows, mostly BENIGN)
+  else:
+    if Destination Port <= -0.184:
+      -> DoS  (210 rows)
+    else:
+      -> BENIGN  (2 rows)
+else:
+  if PSH Flag Count <= 0.500:
+    if Destination Port <= -0.422:
+      ... (subtree, 21 rows, mostly BruteForce)
+    else:
+      -> BENIGN  (78 rows)
+  else:
+    if Fwd IAT Mean <= -0.962:
+      -> PortScan  (318 rows)
+    else:
+      -> BENIGN  (11 rows)
+
+Feature importance (share of total Gini decrease):
+  Bwd Packets/s               0.260
+  Bwd Packet Length Std       0.192
+  Average Packet Size         0.166
+  Destination Port            0.122
+  PSH Flag Count              0.115
+  Flow IAT Min                0.032
+  Flow Duration               0.026
+  Idle Max                    0.018
+  Bwd Packet Length Min       0.017
+  Fwd IAT Mean                0.015
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9768 | macro-F1 0.9758 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 0.9769 | alert precision 0.9732 (261 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9799  recall 0.9767
+         DoS precision 0.9634  recall 0.9875
+    PortScan precision 0.9674  recall 0.9889
+  BruteForce precision 0.9885  recall 0.9556
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           3           3           1
+         DoS           1          79           0           0
+    PortScan           1           0          89           0
+  BruteForce           4           0           0          86
+
+=== data\held_Hulk.csv (200 rows) ===
+Accuracy 0.8200 | macro-F1 0.9011 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.8300 | alert precision 1.0000 (166 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.8200
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          34         164           0           2
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN notcp held-out GoldenEye 
+KNN Manhattan, K=1, weighted=0, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9893 | macro-F1 0.9889 | FPR 0.0167 (5 of 300 benign flagged) | detection rate 0.9962 | alert precision 0.9811 (264 flagged)
+Prediction time: 24.02 ms
+      BENIGN precision 0.9966  recall 0.9833
+         DoS precision 0.9756  recall 1.0000
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9780  recall 0.9889
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         295           2           1           2
+         DoS           0          80           0           0
+    PortScan           0           0          90           0
+  BruteForce           1           0           0          89
+
+=== data\held_GoldenEye.csv (200 rows) ===
+Accuracy 0.0600 | macro-F1 0.1132 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0600 | alert precision 1.0000 (12 flagged)
+Prediction time: 8.73 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.0600
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS         188          12           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE notcp held-out GoldenEye 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 19, 101 nodes, 51 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Packet Length Variance <= 1.682:
+  if Average Packet Size <= -0.248:
+    if Bwd Packet Length Min <= 0.119:
+      ... (subtree, 688 rows, mostly BruteForce)
+    else:
+      ... (subtree, 428 rows, mostly PortScan)
+  else:
+    if Bwd IAT Std <= 1.511:
+      ... (subtree, 721 rows, mostly BENIGN)
+    else:
+      ... (subtree, 161 rows, mostly BENIGN)
+else:
+  if Destination Port <= 0.742:
+    -> DoS  (232 rows)
+  else:
+    -> BENIGN  (7 rows)
+
+Feature importance (share of total Gini decrease):
+  Packet Length Variance      0.267
+  Average Packet Size         0.230
+  Bwd Packet Length Min       0.179
+  Destination Port            0.142
+  Bwd Packets/s               0.072
+  Flow IAT Mean               0.038
+  Bwd IAT Std                 0.015
+  Flow IAT Std                0.013
+  Max Packet Length           0.012
+  PSH Flag Count              0.008
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9786 | macro-F1 0.9779 | FPR 0.0167 (5 of 300 benign flagged) | detection rate 0.9731 | alert precision 0.9806 (258 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9768  recall 0.9833
+         DoS precision 0.9875  recall 0.9875
+    PortScan precision 0.9889  recall 0.9889
+  BruteForce precision 0.9659  recall 0.9444
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         295           1           1           3
+         DoS           1          79           0           0
+    PortScan           1           0          89           0
+  BruteForce           5           0           0          85
+
+=== data\held_GoldenEye.csv (200 rows) ===
+Accuracy 0.5150 | macro-F1 0.6799 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.5350 | alert precision 1.0000 (107 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.5150
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          93         103           0           4
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN notcp held-out DDoS 
+KNN Manhattan, K=1, weighted=0, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9839 | macro-F1 0.9833 | FPR 0.0200 (6 of 300 benign flagged) | detection rate 0.9885 | alert precision 0.9772 (263 flagged)
+Prediction time: 22.92 ms
+      BENIGN precision 0.9899  recall 0.9800
+         DoS precision 0.9753  recall 0.9875
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9670  recall 0.9778
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         294           2           1           3
+         DoS           1          79           0           0
+    PortScan           0           0          90           0
+  BruteForce           2           0           0          88
+
+=== data\held_DDoS.csv (200 rows) ===
+Accuracy 0.6450 | macro-F1 0.7842 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.6450 | alert precision 1.0000 (129 flagged)
+Prediction time: 8.41 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.6450
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          71         129           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE notcp held-out DDoS 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 21, 95 nodes, 48 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Min Packet Length <= 0.233:
+  if Bwd Packet Length Min <= 0.117:
+    if Destination Port <= -0.428:
+      ... (subtree, 796 rows, mostly BruteForce)
+    else:
+      ... (subtree, 348 rows, mostly BENIGN)
+  else:
+    if Flow IAT Std <= -0.949:
+      -> PortScan  (351 rows)
+    else:
+      ... (subtree, 39 rows, mostly BENIGN)
+else:
+  -> BENIGN  (703 rows)
+
+Feature importance (share of total Gini decrease):
+  Bwd Packet Length Min       0.220
+  Min Packet Length           0.208
+  Bwd Packet Length Std       0.190
+  Destination Port            0.188
+  Flow IAT Std                0.053
+  Bwd Packets/s               0.049
+  Flow Duration               0.036
+  Flow IAT Mean               0.015
+  Packet Length Variance      0.013
+  FIN Flag Count              0.009
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9714 | macro-F1 0.9702 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 0.9654 | alert precision 0.9729 (258 flagged)
+Prediction time: 0.03 ms
+      BENIGN precision 0.9702  recall 0.9767
+         DoS precision 0.9750  recall 0.9750
+    PortScan precision 0.9780  recall 0.9889
+  BruteForce precision 0.9655  recall 0.9333
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           2           2           3
+         DoS           2          78           0           0
+    PortScan           1           0          89           0
+  BruteForce           6           0           0          84
+
+=== data\held_DDoS.csv (200 rows) ===
+Accuracy 0.6350 | macro-F1 0.7768 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.6350 | alert precision 1.0000 (127 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.6350
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          73         127           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN notcp held-out FTP 
+KNN Manhattan, K=1, weighted=0, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9874 | macro-F1 0.9845 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 1.0000 | alert precision 0.9733 (262 flagged)
+Prediction time: 22.65 ms
+      BENIGN precision 1.0000  recall 0.9767
+         DoS precision 0.9756  recall 1.0000
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9375  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           3           1           3
+         DoS           0         120           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          45
+
+=== data\held_FTP.csv (225 rows) ===
+Accuracy 0.0044 | macro-F1 0.0088 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0311 | alert precision 1.0000 (7 flagged)
+Prediction time: 7.53 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 1.0000  recall 0.0044
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         218           6           0           1
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE notcp held-out FTP 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 11, 103 nodes, 52 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Bwd Packet Length Std <= 1.658:
+  if Total Length of Fwd Packets <= -0.765:
+    if Bwd Packet Length Min <= -0.307:
+      ... (subtree, 369 rows, mostly BruteForce)
+    else:
+      ... (subtree, 352 rows, mostly PortScan)
+  else:
+    if Bwd Packets/s <= -0.954:
+      ... (subtree, 197 rows, mostly BENIGN)
+    else:
+      ... (subtree, 961 rows, mostly BENIGN)
+else:
+  if Destination Port <= -0.233:
+    -> DoS  (336 rows)
+  else:
+    -> BENIGN  (2 rows)
+
+Feature importance (share of total Gini decrease):
+  Bwd Packet Length Std       0.279
+  Total Length of Fwd Packets 0.265
+  Bwd Packet Length Min       0.175
+  Flow IAT Std                0.140
+  Destination Port            0.055
+  Bwd Packets/s               0.044
+  Flow Duration               0.023
+  Bwd IAT Std                 0.009
+  FIN Flag Count              0.003
+  Fwd Packet Length Min       0.003
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9802 | macro-F1 0.9747 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 0.9843 | alert precision 0.9729 (258 flagged)
+Prediction time: 0.03 ms
+      BENIGN precision 0.9865  recall 0.9767
+         DoS precision 0.9833  recall 0.9833
+    PortScan precision 0.9783  recall 1.0000
+  BruteForce precision 0.9348  recall 0.9556
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           2           2           3
+         DoS           2         118           0           0
+    PortScan           0           0          90           0
+  BruteForce           2           0           0          43
+
+=== data\held_FTP.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0000 | alert precision 0.0000 (0 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         225           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN notcp held-out WebBF 
+KNN Manhattan, K=1, weighted=0, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9946 | macro-F1 0.9953 | FPR 0.0100 (3 of 300 benign flagged) | detection rate 1.0000 | alert precision 0.9884 (258 flagged)
+Prediction time: 23.20 ms
+      BENIGN precision 1.0000  recall 0.9900
+         DoS precision 0.9836  recall 1.0000
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 1.0000  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         297           2           1           0
+         DoS           0         120           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          45
+
+=== data\held_WebBF.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0000 | alert precision 0.0000 (0 flagged)
+Prediction time: 9.82 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         225           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE notcp held-out WebBF 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 11, 73 nodes, 37 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Packet Length Variance <= 1.433:
+  if Average Packet Size <= -0.405:
+    if Packet Length Variance <= -0.876:
+      ... (subtree, 425 rows, mostly BENIGN)
+    else:
+      ... (subtree, 570 rows, mostly PortScan)
+  else:
+    if Flow IAT Mean <= 1.800:
+      ... (subtree, 873 rows, mostly BENIGN)
+    else:
+      -> DoS  (8 rows)
+else:
+  if Destination Port <= -0.181:
+    if Packet Length Variance <= 1.487:
+      ... (subtree, 24 rows, mostly DoS)
+    else:
+      -> DoS  (306 rows)
+  else:
+    -> BENIGN  (11 rows)
+
+Feature importance (share of total Gini decrease):
+  Packet Length Variance      0.420
+  Average Packet Size         0.206
+  Bwd Packet Length Min       0.161
+  Destination Port            0.127
+  Bwd Packets/s               0.028
+  Flow Duration               0.019
+  Flow IAT Mean               0.019
+  PSH Flag Count              0.009
+  Max Packet Length           0.004
+  FIN Flag Count              0.004
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9892 | macro-F1 0.9910 | FPR 0.0200 (6 of 300 benign flagged) | detection rate 1.0000 | alert precision 0.9770 (261 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 1.0000  recall 0.9800
+         DoS precision 0.9600  recall 1.0000
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 1.0000  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         294           5           1           0
+         DoS           0         120           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          45
+
+=== data\held_WebBF.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0000 | alert precision 0.0000 (0 flagged)
+Prediction time: 0.01 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         225           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN notcp full-A2 with V and C 
+KNN Manhattan, K=1, weighted=0, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (600 rows) ===
+Accuracy 0.9850 | macro-F1 0.9848 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 0.9933 | alert precision 0.9770 (305 flagged)
+Prediction time: 26.83 ms
+      BENIGN precision 0.9932  recall 0.9767
+         DoS precision 0.9756  recall 1.0000
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9670  recall 0.9778
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           3           1           3
+         DoS           0         120           0           0
+    PortScan           0           0          90           0
+  BruteForce           2           0           0          88
+
+=== data\sample_V.csv (1304 rows) ===
+Accuracy 0.6012 | macro-F1 0.4864 | FPR 0.0167 (10 of 600 benign flagged) | detection rate 0.3196 | alert precision 0.9574 (235 flagged)
+Prediction time: 57.20 ms
+      BENIGN precision 0.5519  recall 0.9833
+         DoS precision 0.7083  recall 0.0576
+    PortScan precision 0.9146  recall 1.0000
+  BruteForce precision 0.5745  recall 0.1042
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         590           7           2           1
+         DoS         250          17           9          19
+    PortScan           0           0         150           0
+  BruteForce         229           0           3          27
+
+=== data\sample_C.csv (9914 rows) ===
+Accuracy 0.9759 | macro-F1 0.8242 | FPR 0.0201 (168 of 8360 benign flagged) | detection rate 0.9588 | alert precision 0.8987 (1658 flagged)
+Prediction time: 506.87 ms
+      BENIGN precision 0.9922  recall 0.9799
+         DoS precision 0.9087  recall 0.9454
+    PortScan precision 0.9686  recall 1.0000
+  BruteForce precision 0.3030  recall 0.5882
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN        8192          87          17          64
+         DoS          43         866           2           5
+    PortScan           0           0         587           0
+  BruteForce          21           0           0          30
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE notcp full-A2 with V and C 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'notcp' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 19, 113 nodes, 57 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Packet Length Variance <= 1.487:
+  if Average Packet Size <= -0.285:
+    if Bwd Packet Length Min <= 0.172:
+      ... (subtree, 727 rows, mostly BruteForce)
+    else:
+      ... (subtree, 427 rows, mostly PortScan)
+  else:
+    if Flow IAT Mean <= 1.722:
+      ... (subtree, 894 rows, mostly BENIGN)
+    else:
+      -> DoS  (8 rows)
+else:
+  if Destination Port <= -0.145:
+    if Packet Length Variance <= 1.541:
+      ... (subtree, 24 rows, mostly DoS)
+    else:
+      -> DoS  (306 rows)
+  else:
+    -> BENIGN  (11 rows)
+
+Feature importance (share of total Gini decrease):
+  Packet Length Variance      0.280
+  Average Packet Size         0.211
+  Bwd Packet Length Min       0.158
+  Destination Port            0.149
+  Bwd Packets/s               0.091
+  Flow Duration               0.027
+  Flow IAT Mean               0.024
+  Bwd Packet Length Mean      0.023
+  Max Packet Length           0.015
+  PSH Flag Count              0.007
+
+=== held-out test split (600 rows) ===
+Accuracy 0.9783 | macro-F1 0.9778 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 0.9800 | alert precision 0.9767 (301 flagged)
+Prediction time: 0.04 ms
+      BENIGN precision 0.9799  recall 0.9767
+         DoS precision 0.9754  recall 0.9917
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9659  recall 0.9444
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           3           1           3
+         DoS           1         119           0           0
+    PortScan           0           0          90           0
+  BruteForce           5           0           0          85
+
+=== data\sample_V.csv (1304 rows) ===
+Accuracy 0.6327 | macro-F1 0.5525 | FPR 0.0117 (7 of 600 benign flagged) | detection rate 0.3523 | alert precision 0.9725 (255 flagged)
+Prediction time: 0.05 ms
+      BENIGN precision 0.5653  recall 0.9883
+         DoS precision 0.9524  recall 0.1356
+    PortScan precision 0.9804  recall 1.0000
+  BruteForce precision 0.7000  recall 0.1622
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         593           2           3           2
+         DoS         239          40           0          16
+    PortScan           0           0         150           0
+  BruteForce         217           0           0          42
+
+=== data\sample_C.csv (9914 rows) ===
+Accuracy 0.9785 | macro-F1 0.8364 | FPR 0.0172 (144 of 8360 benign flagged) | detection rate 0.9582 | alert precision 0.9118 (1633 flagged)
+Prediction time: 0.21 ms
+      BENIGN precision 0.9922  recall 0.9828
+         DoS precision 0.9372  recall 0.9454
+    PortScan precision 0.9622  recall 0.9983
+  BruteForce precision 0.3300  recall 0.6471
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN        8216          58          23          63
+         DoS          46         866           0           4
+    PortScan           1           0         586           0
+  BruteForce          18           0           0          33
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top5 held-out Hulk 
+KNN Manhattan, K=1, weighted=0, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9554 | macro-F1 0.9499 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 0.9346 | alert precision 0.9720 (250 flagged)
+Prediction time: 19.81 ms
+      BENIGN precision 0.9452  recall 0.9767
+         DoS precision 0.9710  recall 0.8375
+    PortScan precision 1.0000  recall 0.9889
+  BruteForce precision 0.9348  recall 0.9556
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           2           0           5
+         DoS          13          67           0           0
+    PortScan           0           0          89           1
+  BruteForce           4           0           0          86
+
+=== data\held_Hulk.csv (200 rows) ===
+Accuracy 0.8200 | macro-F1 0.9011 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.8250 | alert precision 1.0000 (165 flagged)
+Prediction time: 6.03 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.8200
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          35         164           0           1
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top5 held-out Hulk 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 10, 71 nodes, 36 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Bwd Packet Length Std <= 1.952:
+  if Average Packet Size <= -0.228:
+    if Packet Length Variance <= -0.754:
+      ... (subtree, 561 rows, mostly BENIGN)
+    else:
+      ... (subtree, 562 rows, mostly PortScan)
+  else:
+    if Bwd Packet Length Std <= 1.810:
+      ... (subtree, 876 rows, mostly BENIGN)
+    else:
+      ... (subtree, 26 rows, mostly BENIGN)
+else:
+  if Average Packet Size <= 1.269:
+    if Bwd Packet Length Std <= 2.011:
+      -> DoS  (6 rows)
+    else:
+      -> BENIGN  (2 rows)
+  else:
+    -> DoS  (204 rows)
+
+Feature importance (share of total Gini decrease):
+  Average Packet Size         0.485
+  Bwd Packet Length Std       0.223
+  Packet Length Variance      0.175
+  PSH Flag Count              0.083
+  Min Packet Length           0.034
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9625 | macro-F1 0.9575 | FPR 0.0133 (4 of 300 benign flagged) | detection rate 0.9385 | alert precision 0.9839 (248 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9487  recall 0.9867
+         DoS precision 0.9855  recall 0.8500
+    PortScan precision 1.0000  recall 0.9889
+  BruteForce precision 0.9556  recall 0.9556
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         296           1           0           3
+         DoS          12          68           0           0
+    PortScan           0           0          89           1
+  BruteForce           4           0           0          86
+
+=== data\held_Hulk.csv (200 rows) ===
+Accuracy 0.8200 | macro-F1 0.9011 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.8250 | alert precision 1.0000 (165 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.8200
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          35         164           0           1
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top5 held-out GoldenEye 
+KNN Manhattan, K=1, weighted=0, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9643 | macro-F1 0.9600 | FPR 0.0267 (8 of 300 benign flagged) | detection rate 0.9615 | alert precision 0.9690 (258 flagged)
+Prediction time: 17.92 ms
+      BENIGN precision 0.9669  recall 0.9733
+         DoS precision 0.9605  recall 0.9125
+    PortScan precision 0.9889  recall 0.9889
+  BruteForce precision 0.9348  recall 0.9556
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         292           3           1           4
+         DoS           6          73           0           1
+    PortScan           0           0          89           1
+  BruteForce           4           0           0          86
+
+=== data\held_GoldenEye.csv (200 rows) ===
+Accuracy 0.4700 | macro-F1 0.6395 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.4700 | alert precision 1.0000 (94 flagged)
+Prediction time: 5.68 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.4700
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS         106          94           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top5 held-out GoldenEye 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 8, 67 nodes, 34 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Packet Length Variance <= 1.682:
+  if Average Packet Size <= -0.248:
+    if Packet Length Variance <= -0.763:
+      ... (subtree, 546 rows, mostly BENIGN)
+    else:
+      ... (subtree, 570 rows, mostly PortScan)
+  else:
+    if Bwd Packet Length Mean <= 1.299:
+      ... (subtree, 796 rows, mostly BENIGN)
+    else:
+      ... (subtree, 86 rows, mostly BENIGN)
+else:
+  if Bwd Packet Length Mean <= 0.956:
+    -> BENIGN  (7 rows)
+  else:
+    -> DoS  (232 rows)
+
+Feature importance (share of total Gini decrease):
+  Average Packet Size         0.474
+  Packet Length Variance      0.343
+  PSH Flag Count              0.080
+  Bwd Packet Length Mean      0.065
+  Max Packet Length           0.038
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9625 | macro-F1 0.9585 | FPR 0.0333 (10 of 300 benign flagged) | detection rate 0.9654 | alert precision 0.9617 (261 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9699  recall 0.9667
+         DoS precision 0.9610  recall 0.9250
+    PortScan precision 0.9674  recall 0.9889
+  BruteForce precision 0.9348  recall 0.9556
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         290           3           3           4
+         DoS           5          74           0           1
+    PortScan           0           0          89           1
+  BruteForce           4           0           0          86
+
+=== data\held_GoldenEye.csv (200 rows) ===
+Accuracy 0.5050 | macro-F1 0.6711 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.5050 | alert precision 1.0000 (101 flagged)
+Prediction time: 0.01 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.5050
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          99         101           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top5 held-out DDoS 
+KNN Manhattan, K=1, weighted=0, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.8982 | macro-F1 0.8990 | FPR 0.1567 (47 of 300 benign flagged) | detection rate 0.9962 | alert precision 0.8464 (306 flagged)
+Prediction time: 18.46 ms
+      BENIGN precision 0.9961  recall 0.8433
+         DoS precision 0.9595  recall 0.8875
+    PortScan precision 0.9674  recall 0.9889
+  BruteForce precision 0.6429  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         253           3           3          41
+         DoS           1          71           0           8
+    PortScan           0           0          89           1
+  BruteForce           0           0           0          90
+
+=== data\held_DDoS.csv (200 rows) ===
+Accuracy 0.6350 | macro-F1 0.7768 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.6350 | alert precision 1.0000 (127 flagged)
+Prediction time: 6.85 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.6350
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          73         127           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top5 held-out DDoS 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 9, 67 nodes, 34 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Bwd Packet Length Std <= 1.885:
+  if Average Packet Size <= -0.236:
+    if Packet Length Variance <= -0.787:
+      ... (subtree, 523 rows, mostly BENIGN)
+    else:
+      ... (subtree, 571 rows, mostly PortScan)
+  else:
+    if Idle Min <= 2.230:
+      ... (subtree, 889 rows, mostly BENIGN)
+    else:
+      ... (subtree, 10 rows, mostly DoS)
+else:
+  if Average Packet Size <= 1.231:
+    if Bwd Packet Length Mean <= 1.422:
+      -> DoS  (7 rows)
+    else:
+      -> BENIGN  (2 rows)
+  else:
+    -> DoS  (235 rows)
+
+Feature importance (share of total Gini decrease):
+  Average Packet Size         0.490
+  Bwd Packet Length Std       0.243
+  Packet Length Variance      0.157
+  Bwd Packet Length Mean      0.070
+  Idle Min                    0.040
+
+=== held-out test split (560 rows) ===
+Accuracy 0.8964 | macro-F1 0.8982 | FPR 0.1567 (47 of 300 benign flagged) | detection rate 0.9923 | alert precision 0.8459 (305 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9922  recall 0.8433
+         DoS precision 0.9859  recall 0.8750
+    PortScan precision 0.9674  recall 0.9889
+  BruteForce precision 0.6338  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         253           1           3          43
+         DoS           2          70           0           8
+    PortScan           0           0          89           1
+  BruteForce           0           0           0          90
+
+=== data\held_DDoS.csv (200 rows) ===
+Accuracy 0.6350 | macro-F1 0.7768 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.6350 | alert precision 1.0000 (127 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.6350
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          73         127           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top5 held-out FTP 
+KNN Manhattan, K=1, weighted=0, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (555 rows) ===
+Accuracy 0.8721 | macro-F1 0.7327 | FPR 0.0567 (17 of 300 benign flagged) | detection rate 0.9333 | alert precision 0.9333 (255 flagged)
+Prediction time: 15.57 ms
+      BENIGN precision 0.9433  recall 0.9433
+         DoS precision 0.8803  recall 0.8583
+    PortScan precision 0.6977  recall 1.0000
+  BruteForce precision 0.8889  recall 0.1778
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         283          14           2           1
+         DoS          17         103           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0          37           8
+
+=== data\held_FTP.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.6133 | alert precision 1.0000 (138 flagged)
+Prediction time: 3.89 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce          87           0         138           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top5 held-out FTP 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 10, 65 nodes, 33 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Bwd Packet Length Std <= 1.658:
+  if Packet Length Mean <= -0.777:
+    if Packet Length Variance <= -0.964:
+      ... (subtree, 381 rows, mostly BENIGN)
+    else:
+      ... (subtree, 372 rows, mostly PortScan)
+  else:
+    if Packet Length Mean <= -0.573:
+      ... (subtree, 210 rows, mostly BENIGN)
+    else:
+      ... (subtree, 916 rows, mostly BENIGN)
+else:
+  if Init_Win_bytes_backward <= -0.325:
+    -> BENIGN  (2 rows)
+  else:
+    -> DoS  (336 rows)
+
+Feature importance (share of total Gini decrease):
+  Bwd Packet Length Std       0.309
+  Packet Length Mean          0.296
+  Packet Length Variance      0.200
+  Init_Win_bytes_backward     0.195
+  PSH Flag Count              0.000
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9477 | macro-F1 0.9514 | FPR 0.0600 (18 of 300 benign flagged) | detection rate 0.9569 | alert precision 0.9313 (262 flagged)
+Prediction time: 0.01 ms
+      BENIGN precision 0.9625  recall 0.9400
+         DoS precision 0.9083  recall 0.9083
+    PortScan precision 0.9574  recall 1.0000
+  BruteForce precision 0.9375  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         282          11           4           3
+         DoS          11         109           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          45
+
+=== data\held_FTP.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0044 | alert precision 1.0000 (1 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         224           1           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top5 held-out WebBF 
+KNN Manhattan, K=1, weighted=0, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9568 | macro-F1 0.9628 | FPR 0.0267 (8 of 300 benign flagged) | detection rate 0.9373 | alert precision 0.9676 (247 flagged)
+Prediction time: 16.77 ms
+      BENIGN precision 0.9481  recall 0.9733
+         DoS precision 0.9630  recall 0.8667
+    PortScan precision 0.9574  recall 1.0000
+  BruteForce precision 1.0000  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         292           4           4           0
+         DoS          16         104           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          45
+
+=== data\held_WebBF.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.8000 | alert precision 1.0000 (180 flagged)
+Prediction time: 3.71 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce          45           0         180           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top5 held-out WebBF 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 9, 81 nodes, 41 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Packet Length Variance <= 1.433:
+  if Average Packet Size <= -0.405:
+    if Packet Length Variance <= -0.876:
+      ... (subtree, 425 rows, mostly BENIGN)
+    else:
+      ... (subtree, 570 rows, mostly PortScan)
+  else:
+    if Packet Length Variance <= 1.257:
+      ... (subtree, 813 rows, mostly BENIGN)
+    else:
+      ... (subtree, 68 rows, mostly BENIGN)
+else:
+  if Bwd Packet Length Mean <= 0.736:
+    -> BENIGN  (9 rows)
+  else:
+    if Packet Length Variance <= 1.487:
+      ... (subtree, 26 rows, mostly DoS)
+    else:
+      -> DoS  (306 rows)
+
+Feature importance (share of total Gini decrease):
+  Average Packet Size         0.458
+  Packet Length Variance      0.455
+  Bwd Packet Length Mean      0.068
+  Max Packet Length           0.011
+  PSH Flag Count              0.008
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9586 | macro-F1 0.9645 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 0.9373 | alert precision 0.9715 (246 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9482  recall 0.9767
+         DoS precision 0.9630  recall 0.8667
+    PortScan precision 0.9677  recall 1.0000
+  BruteForce precision 1.0000  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           4           3           0
+         DoS          16         104           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          45
+
+=== data\held_WebBF.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0000 | alert precision 0.0000 (0 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         225           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top5 full-A2 with V and C 
+KNN Manhattan, K=1, weighted=0, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (600 rows) ===
+Accuracy 0.8933 | macro-F1 0.8932 | FPR 0.1600 (48 of 300 benign flagged) | detection rate 1.0000 | alert precision 0.8621 (348 flagged)
+Prediction time: 15.50 ms
+      BENIGN precision 1.0000  recall 0.8400
+         DoS precision 0.9630  recall 0.8667
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.6040  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         252           4           1          43
+         DoS           0         104           0          16
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          90
+
+=== data\sample_V.csv (1304 rows) ===
+Accuracy 0.5828 | macro-F1 0.5261 | FPR 0.1267 (76 of 600 benign flagged) | detection rate 0.5213 | alert precision 0.8284 (443 flagged)
+Prediction time: 48.29 ms
+      BENIGN precision 0.6086  recall 0.8733
+         DoS precision 0.8125  recall 0.0881
+    PortScan precision 0.9934  recall 1.0000
+  BruteForce precision 0.2308  recall 0.2317
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         524           6           1          69
+         DoS         138          26           0         131
+    PortScan           0           0         150           0
+  BruteForce         199           0           0          60
+
+=== data\sample_C.csv (9914 rows) ===
+Accuracy 0.8720 | macro-F1 0.7103 | FPR 0.1313 (1098 of 8360 benign flagged) | detection rate 0.9717 | alert precision 0.5790 (2608 flagged)
+Prediction time: 259.25 ms
+      BENIGN precision 0.9940  recall 0.8687
+         DoS precision 0.9150  recall 0.8341
+    PortScan precision 0.9767  recall 0.9983
+  BruteForce precision 0.0281  recall 0.6471
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN        7262          71          14        1013
+         DoS          26         764           0         126
+    PortScan           0           0         586           1
+  BruteForce          18           0           0          33
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top5 full-A2 with V and C 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top5' (5 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 9, 85 nodes, 43 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Packet Length Variance <= 1.487:
+  if Average Packet Size <= -0.285:
+    if Packet Length Variance <= -0.792:
+      ... (subtree, 586 rows, mostly BENIGN)
+    else:
+      ... (subtree, 568 rows, mostly PortScan)
+  else:
+    if Bwd Packet Length Mean <= 1.201:
+      ... (subtree, 804 rows, mostly BENIGN)
+    else:
+      ... (subtree, 98 rows, mostly BENIGN)
+else:
+  if Bwd Packet Length Mean <= 0.800:
+    -> BENIGN  (9 rows)
+  else:
+    if Packet Length Variance <= 1.541:
+      ... (subtree, 26 rows, mostly DoS)
+    else:
+      -> DoS  (306 rows)
+
+Feature importance (share of total Gini decrease):
+  Average Packet Size         0.433
+  Packet Length Variance      0.361
+  Bwd Packet Length Mean      0.085
+  PSH Flag Count              0.077
+  Max Packet Length           0.044
+
+=== held-out test split (600 rows) ===
+Accuracy 0.9417 | macro-F1 0.9428 | FPR 0.0400 (12 of 300 benign flagged) | detection rate 0.9233 | alert precision 0.9585 (289 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9260  recall 0.9600
+         DoS precision 0.9630  recall 0.8667
+    PortScan precision 0.9677  recall 1.0000
+  BruteForce precision 0.9432  recall 0.9222
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         288           4           3           5
+         DoS          16         104           0           0
+    PortScan           0           0          90           0
+  BruteForce           7           0           0          83
+
+=== data\sample_V.csv (1304 rows) ===
+Accuracy 0.5713 | macro-F1 0.4430 | FPR 0.0217 (13 of 600 benign flagged) | detection rate 0.4091 | alert precision 0.9568 (301 flagged)
+Prediction time: 0.04 ms
+      BENIGN precision 0.5852  recall 0.9783
+         DoS precision 0.5000  recall 0.0136
+    PortScan precision 0.9868  recall 1.0000
+  BruteForce precision 0.0284  recall 0.0154
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         587           4           2           7
+         DoS         161           4           0         130
+    PortScan           0           0         150           0
+  BruteForce         255           0           0           4
+
+=== data\sample_C.csv (9914 rows) ===
+Accuracy 0.9618 | macro-F1 0.7738 | FPR 0.0225 (188 of 8360 benign flagged) | detection rate 0.8919 | alert precision 0.8806 (1574 flagged)
+Prediction time: 0.21 ms
+      BENIGN precision 0.9799  recall 0.9775
+         DoS precision 0.9350  recall 0.8166
+    PortScan precision 0.9799  recall 0.9983
+  BruteForce precision 0.1648  recall 0.5686
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN        8172          52          12         124
+         DoS         146         748           0          22
+    PortScan           0           0         586           1
+  BruteForce          22           0           0          29
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top10 held-out Hulk 
+KNN Manhattan, K=1, weighted=0, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9839 | macro-F1 0.9815 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 1.0000 | alert precision 0.9738 (267 flagged)
+Prediction time: 16.93 ms
+      BENIGN precision 1.0000  recall 0.9767
+         DoS precision 0.9639  recall 1.0000
+    PortScan precision 0.9780  recall 0.9889
+  BruteForce precision 0.9570  recall 0.9889
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           2           2           3
+         DoS           0          80           0           0
+    PortScan           0           0          89           1
+  BruteForce           0           1           0          89
+
+=== data\held_Hulk.csv (200 rows) ===
+Accuracy 0.2000 | macro-F1 0.3333 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.2000 | alert precision 1.0000 (40 flagged)
+Prediction time: 6.32 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.2000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS         160          40           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top10 held-out Hulk 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 12, 81 nodes, 41 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Init_Win_bytes_forward <= -0.741:
+  if Init_Win_bytes_forward <= -0.743:
+    -> BENIGN  (648 rows)
+  else:
+    if Init_Win_bytes_backward <= -0.317:
+      -> BENIGN  (3 rows)
+    else:
+      -> BENIGN  (4 rows)
+else:
+  if Bwd Packet Length Min <= 0.116:
+    if Bwd Packet Length Std <= 1.952:
+      ... (subtree, 931 rows, mostly BENIGN)
+    else:
+      ... (subtree, 212 rows, mostly DoS)
+  else:
+    if Average Packet Size <= -0.608:
+      ... (subtree, 364 rows, mostly PortScan)
+    else:
+      ... (subtree, 75 rows, mostly BENIGN)
+
+Feature importance (share of total Gini decrease):
+  Init_Win_bytes_forward      0.264
+  Bwd Packet Length Min       0.191
+  Bwd Packet Length Std       0.170
+  Average Packet Size         0.163
+  min_seg_size_forward        0.093
+  Init_Win_bytes_backward     0.067
+  Packet Length Variance      0.028
+  Min Packet Length           0.011
+  PSH Flag Count              0.010
+  Down/Up Ratio               0.003
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9732 | macro-F1 0.9707 | FPR 0.0333 (10 of 300 benign flagged) | detection rate 0.9885 | alert precision 0.9625 (267 flagged)
+Prediction time: 0.03 ms
+      BENIGN precision 0.9898  recall 0.9667
+         DoS precision 0.9753  recall 0.9875
+    PortScan precision 0.9570  recall 0.9889
+  BruteForce precision 0.9355  recall 0.9667
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         290           2           3           5
+         DoS           1          79           0           0
+    PortScan           0           0          89           1
+  BruteForce           2           0           1          87
+
+=== data\held_Hulk.csv (200 rows) ===
+Accuracy 0.5650 | macro-F1 0.7220 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.5650 | alert precision 1.0000 (113 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.5650
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          87         113           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top10 held-out GoldenEye 
+KNN Manhattan, K=1, weighted=0, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9696 | macro-F1 0.9676 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 0.9615 | alert precision 0.9728 (257 flagged)
+Prediction time: 21.23 ms
+      BENIGN precision 0.9670  recall 0.9767
+         DoS precision 0.9494  recall 0.9375
+    PortScan precision 1.0000  recall 1.0000
+  BruteForce precision 0.9659  recall 0.9444
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           4           0           3
+         DoS           5          75           0           0
+    PortScan           0           0          90           0
+  BruteForce           5           0           0          85
+
+=== data\held_GoldenEye.csv (200 rows) ===
+Accuracy 0.1150 | macro-F1 0.2063 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.1150 | alert precision 1.0000 (23 flagged)
+Prediction time: 6.24 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.1150
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS         177          23           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top10 held-out GoldenEye 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 16, 103 nodes, 52 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Packet Length Variance <= 1.682:
+  if Average Packet Size <= -0.248:
+    if Flow IAT Std <= -0.832:
+      ... (subtree, 626 rows, mostly PortScan)
+    else:
+      ... (subtree, 490 rows, mostly BruteForce)
+  else:
+    if Bwd Packet Length Mean <= 1.299:
+      ... (subtree, 796 rows, mostly BENIGN)
+    else:
+      ... (subtree, 86 rows, mostly BENIGN)
+else:
+  if Bwd Packet Length Mean <= 0.956:
+    -> BENIGN  (7 rows)
+  else:
+    -> DoS  (232 rows)
+
+Feature importance (share of total Gini decrease):
+  Packet Length Variance      0.389
+  Average Packet Size         0.290
+  Flow IAT Std                0.161
+  min_seg_size_forward        0.091
+  Bwd Packet Length Mean      0.046
+  Fwd IAT Std                 0.019
+  PSH Flag Count              0.002
+  Max Packet Length           0.001
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9607 | macro-F1 0.9586 | FPR 0.0233 (7 of 300 benign flagged) | detection rate 0.9423 | alert precision 0.9722 (252 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9513  recall 0.9767
+         DoS precision 0.9870  recall 0.9500
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9405  recall 0.8778
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         293           1           1           5
+         DoS           4          76           0           0
+    PortScan           0           0          90           0
+  BruteForce          11           0           0          79
+
+=== data\held_GoldenEye.csv (200 rows) ===
+Accuracy 0.5050 | macro-F1 0.6711 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.5050 | alert precision 1.0000 (101 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.5050
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          99         101           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top10 held-out DDoS 
+KNN Manhattan, K=1, weighted=0, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9661 | macro-F1 0.9642 | FPR 0.0300 (9 of 300 benign flagged) | detection rate 0.9615 | alert precision 0.9653 (259 flagged)
+Prediction time: 17.14 ms
+      BENIGN precision 0.9668  recall 0.9700
+         DoS precision 0.9615  recall 0.9375
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9444  recall 0.9444
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         291           3           1           5
+         DoS           5          75           0           0
+    PortScan           0           0          90           0
+  BruteForce           5           0           0          85
+
+=== data\held_DDoS.csv (200 rows) ===
+Accuracy 0.6350 | macro-F1 0.7768 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.6350 | alert precision 1.0000 (127 flagged)
+Prediction time: 6.05 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.6350
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          73         127           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top10 held-out DDoS 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 19, 153 nodes, 77 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Min Packet Length <= 0.233:
+  if Bwd Packet Length Std <= 1.885:
+    if Flow Duration <= -0.976:
+      ... (subtree, 514 rows, mostly PortScan)
+    else:
+      ... (subtree, 776 rows, mostly BENIGN)
+  else:
+    if Average Packet Size <= 1.231:
+      ... (subtree, 9 rows, mostly DoS)
+    else:
+      -> DoS  (235 rows)
+else:
+  -> BENIGN  (703 rows)
+
+Feature importance (share of total Gini decrease):
+  Min Packet Length           0.211
+  Bwd Packet Length Std       0.197
+  Flow Duration               0.186
+  Packet Length Variance      0.138
+  Bwd Packet Length Mean      0.128
+  Flow IAT Std                0.080
+  Fwd IAT Std                 0.031
+  Idle Min                    0.016
+  Average Packet Size         0.012
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9482 | macro-F1 0.9458 | FPR 0.0367 (11 of 300 benign flagged) | detection rate 0.9308 | alert precision 0.9565 (253 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9414  recall 0.9633
+         DoS precision 0.9737  recall 0.9250
+    PortScan precision 0.9888  recall 0.9778
+  BruteForce precision 0.9091  recall 0.8889
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         289           2           1           8
+         DoS           6          74           0           0
+    PortScan           2           0          88           0
+  BruteForce          10           0           0          80
+
+=== data\held_DDoS.csv (200 rows) ===
+Accuracy 0.6350 | macro-F1 0.7768 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.6350 | alert precision 1.0000 (127 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.6350
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          73         127           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top10 held-out FTP 
+KNN Manhattan, K=1, weighted=0, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9874 | macro-F1 0.9877 | FPR 0.0133 (4 of 300 benign flagged) | detection rate 0.9882 | alert precision 0.9844 (256 flagged)
+Prediction time: 19.13 ms
+      BENIGN precision 0.9900  recall 0.9867
+         DoS precision 0.9832  recall 0.9750
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9783  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         296           2           1           1
+         DoS           3         117           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          45
+
+=== data\held_FTP.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0000 | alert precision 0.0000 (0 flagged)
+Prediction time: 6.34 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         225           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top10 held-out FTP 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 12, 99 nodes, 50 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Bwd Packet Length Std <= 1.658:
+  if Packet Length Mean <= -0.777:
+    if Bwd Packet Length Min <= 0.109:
+      ... (subtree, 402 rows, mostly BENIGN)
+    else:
+      -> PortScan  (351 rows)
+  else:
+    if Flow IAT Std <= 0.736:
+      ... (subtree, 786 rows, mostly BENIGN)
+    else:
+      ... (subtree, 340 rows, mostly BENIGN)
+else:
+  if Init_Win_bytes_backward <= -0.325:
+    -> BENIGN  (2 rows)
+  else:
+    -> DoS  (336 rows)
+
+Feature importance (share of total Gini decrease):
+  Bwd Packet Length Std       0.285
+  Packet Length Mean          0.285
+  Bwd Packet Length Min       0.189
+  Flow IAT Std                0.139
+  Init_Win_bytes_backward     0.070
+  Idle Max                    0.026
+  Min Packet Length           0.005
+  Fwd IAT Std                 0.001
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9784 | macro-F1 0.9761 | FPR 0.0167 (5 of 300 benign flagged) | detection rate 0.9725 | alert precision 0.9802 (253 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9768  recall 0.9833
+         DoS precision 0.9914  recall 0.9583
+    PortScan precision 0.9677  recall 1.0000
+  BruteForce precision 0.9773  recall 0.9556
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         295           1           3           1
+         DoS           5         115           0           0
+    PortScan           0           0          90           0
+  BruteForce           2           0           0          43
+
+=== data\held_FTP.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0000 | alert precision 0.0000 (0 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         225           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top10 held-out WebBF 
+KNN Manhattan, K=1, weighted=0, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9856 | macro-F1 0.9880 | FPR 0.0167 (5 of 300 benign flagged) | detection rate 0.9882 | alert precision 0.9805 (257 flagged)
+Prediction time: 18.08 ms
+      BENIGN precision 0.9899  recall 0.9833
+         DoS precision 0.9669  recall 0.9750
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 1.0000  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         295           4           1           0
+         DoS           3         117           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          45
+
+=== data\held_WebBF.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0000 | alert precision 0.0000 (0 flagged)
+Prediction time: 5.76 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         225           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top10 held-out WebBF 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 10, 91 nodes, 46 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Packet Length Variance <= 1.433:
+  if Average Packet Size <= -0.405:
+    if Packet Length Variance <= -0.876:
+      ... (subtree, 425 rows, mostly BENIGN)
+    else:
+      ... (subtree, 570 rows, mostly PortScan)
+  else:
+    if Idle Max <= 2.056:
+      ... (subtree, 869 rows, mostly BENIGN)
+    else:
+      ... (subtree, 12 rows, mostly DoS)
+else:
+  if Bwd Packet Length Mean <= 0.736:
+    -> BENIGN  (9 rows)
+  else:
+    if Packet Length Variance <= 1.487:
+      ... (subtree, 26 rows, mostly DoS)
+    else:
+      -> DoS  (306 rows)
+
+Feature importance (share of total Gini decrease):
+  Packet Length Variance      0.437
+  Average Packet Size         0.241
+  Bwd Packet Length Min       0.172
+  Idle Max                    0.058
+  Fwd IAT Std                 0.040
+  Bwd Packet Length Mean      0.025
+  PSH Flag Count              0.020
+  Max Packet Length           0.007
+  Min Packet Length           0.000
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9838 | macro-F1 0.9866 | FPR 0.0200 (6 of 300 benign flagged) | detection rate 0.9882 | alert precision 0.9767 (258 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9899  recall 0.9800
+         DoS precision 0.9590  recall 0.9750
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 1.0000  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         294           5           1           0
+         DoS           3         117           0           0
+    PortScan           0           0          90           0
+  BruteForce           0           0           0          45
+
+=== data\held_WebBF.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.0000 | alert precision 0.0000 (0 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         225           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN top10 full-A2 with V and C 
+KNN Manhattan, K=1, weighted=0, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (600 rows) ===
+Accuracy 0.9333 | macro-F1 0.9345 | FPR 0.1200 (36 of 300 benign flagged) | detection rate 0.9933 | alert precision 0.8922 (334 flagged)
+Prediction time: 20.19 ms
+      BENIGN precision 0.9925  recall 0.8800
+         DoS precision 0.9669  recall 0.9750
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.7295  recall 0.9889
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         264           4           1          31
+         DoS           1         117           0           2
+    PortScan           0           0          90           0
+  BruteForce           1           0           0          89
+
+=== data\sample_V.csv (1304 rows) ===
+Accuracy 0.7454 | macro-F1 0.7014 | FPR 0.0900 (54 of 600 benign flagged) | detection rate 0.6165 | alert precision 0.8893 (488 flagged)
+Prediction time: 60.61 ms
+      BENIGN precision 0.6691  recall 0.9100
+         DoS precision 0.7188  recall 0.0780
+    PortScan precision 0.9934  recall 1.0000
+  BruteForce precision 0.8295  recall 0.9768
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         546           6           1          47
+         DoS         267          23           0           5
+    PortScan           0           0         150           0
+  BruteForce           3           3           0         253
+
+=== data\sample_C.csv (9914 rows) ===
+Accuracy 0.9050 | macro-F1 0.7331 | FPR 0.0999 (835 of 8360 benign flagged) | detection rate 0.9665 | alert precision 0.6427 (2337 flagged)
+Prediction time: 321.70 ms
+      BENIGN precision 0.9931  recall 0.9001
+         DoS precision 0.8861  recall 0.8832
+    PortScan precision 0.9735  recall 1.0000
+  BruteForce precision 0.0621  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN        7525         104          16         715
+         DoS          52         809           0          55
+    PortScan           0           0         587           0
+  BruteForce           0           0           0          51
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE top10 full-A2 with V and C 
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'top10' (10 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 16, 127 nodes, 64 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Packet Length Variance <= 1.487:
+  if Average Packet Size <= -0.285:
+    if Bwd Packet Length Min <= 0.172:
+      ... (subtree, 727 rows, mostly BruteForce)
+    else:
+      ... (subtree, 427 rows, mostly PortScan)
+  else:
+    if Bwd Packet Length Mean <= 1.201:
+      ... (subtree, 804 rows, mostly BENIGN)
+    else:
+      ... (subtree, 98 rows, mostly BENIGN)
+else:
+  if Bwd Packet Length Mean <= 0.800:
+    -> BENIGN  (9 rows)
+  else:
+    if Packet Length Variance <= 1.541:
+      ... (subtree, 26 rows, mostly DoS)
+    else:
+      -> DoS  (306 rows)
+
+Feature importance (share of total Gini decrease):
+  Packet Length Variance      0.301
+  Average Packet Size         0.263
+  Bwd Packet Length Min       0.167
+  PSH Flag Count              0.078
+  Fwd IAT Std                 0.054
+  Idle Max                    0.051
+  min_seg_size_forward        0.048
+  Bwd Packet Length Mean      0.038
+  Max Packet Length           0.001
+
+=== held-out test split (600 rows) ===
+Accuracy 0.9583 | macro-F1 0.9571 | FPR 0.0300 (9 of 300 benign flagged) | detection rate 0.9467 | alert precision 0.9693 (293 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9479  recall 0.9700
+         DoS precision 0.9587  recall 0.9667
+    PortScan precision 0.9890  recall 1.0000
+  BruteForce precision 0.9630  recall 0.8667
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         291           5           1           3
+         DoS           4         116           0           0
+    PortScan           0           0          90           0
+  BruteForce          12           0           0          78
+
+=== data\sample_V.csv (1304 rows) ===
+Accuracy 0.6020 | macro-F1 0.4972 | FPR 0.0167 (10 of 600 benign flagged) | detection rate 0.3963 | alert precision 0.9654 (289 flagged)
+Prediction time: 0.04 ms
+      BENIGN precision 0.5813  recall 0.9833
+         DoS precision 0.9184  recall 0.1525
+    PortScan precision 0.9934  recall 1.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         590           4           1           5
+         DoS         166          45           0          84
+    PortScan           0           0         150           0
+  BruteForce         259           0           0           0
+
+=== data\sample_C.csv (9914 rows) ===
+Accuracy 0.9716 | macro-F1 0.8203 | FPR 0.0173 (145 of 8360 benign flagged) | detection rate 0.9221 | alert precision 0.9081 (1578 flagged)
+Prediction time: 0.23 ms
+      BENIGN precision 0.9855  recall 0.9827
+         DoS precision 0.9020  recall 0.8745
+    PortScan precision 0.9719  recall 1.0000
+  BruteForce precision 0.3372  recall 0.5686
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN        8215          87          17          41
+         DoS          99         801           0          16
+    PortScan           0           0         587           0
+  BruteForce          22           0           0          29
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN portdur held-out Hulk 
+KNN Manhattan, K=5, weighted=0, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9089 | macro-F1 0.8983 | FPR 0.0900 (27 of 300 benign flagged) | detection rate 0.9346 | alert precision 0.9000 (270 flagged)
+Prediction time: 12.07 ms
+      BENIGN precision 0.9414  recall 0.9100
+         DoS precision 0.8235  recall 0.8750
+    PortScan precision 0.9130  recall 0.9333
+  BruteForce precision 0.8817  recall 0.9111
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         273          12           8           7
+         DoS           6          70           0           4
+    PortScan           6           0          84           0
+  BruteForce           5           3           0          82
+
+=== data\held_Hulk.csv (200 rows) ===
+Accuracy 0.8000 | macro-F1 0.8889 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.8250 | alert precision 1.0000 (165 flagged)
+Prediction time: 2.79 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.8000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          35         160           0           5
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE portdur held-out Hulk 
+Decision Tree, maxDepth 6, minLeaf 2, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 6, 81 nodes, 41 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Flow Duration <= -0.991:
+  if Destination Port <= 1.941:
+    if Destination Port <= 0.207:
+      ... (subtree, 80 rows, mostly BENIGN)
+    else:
+      ... (subtree, 337 rows, mostly PortScan)
+  else:
+    if Destination Port <= 2.119:
+      ... (subtree, 62 rows, mostly BENIGN)
+    else:
+      ... (subtree, 124 rows, mostly BENIGN)
+else:
+  if Destination Port <= -1.063:
+    if Destination Port <= -1.710:
+      -> BENIGN  (2 rows)
+    else:
+      ... (subtree, 174 rows, mostly BruteForce)
+  else:
+    if Flow Duration <= 0.534:
+      ... (subtree, 700 rows, mostly BENIGN)
+    else:
+      ... (subtree, 758 rows, mostly BENIGN)
+
+Feature importance (share of total Gini decrease):
+  Destination Port            0.505
+  Flow Duration               0.495
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9000 | macro-F1 0.8876 | FPR 0.1067 (32 of 300 benign flagged) | detection rate 0.9500 | alert precision 0.8853 (279 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9537  recall 0.8933
+         DoS precision 0.7129  recall 0.9000
+    PortScan precision 0.9213  recall 0.9111
+  BruteForce precision 0.9213  recall 0.9111
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         268          22           6           4
+         DoS           6          72           0           2
+    PortScan           7           0          82           1
+  BruteForce           0           7           1          82
+
+=== data\held_Hulk.csv (200 rows) ===
+Accuracy 0.8100 | macro-F1 0.8950 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.8300 | alert precision 1.0000 (166 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.8100
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          34         162           0           4
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN portdur held-out GoldenEye 
+KNN Manhattan, K=5, weighted=0, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9107 | macro-F1 0.9034 | FPR 0.0933 (28 of 300 benign flagged) | detection rate 0.9308 | alert precision 0.8963 (270 flagged)
+Prediction time: 11.06 ms
+      BENIGN precision 0.9379  recall 0.9067
+         DoS precision 0.8276  recall 0.9000
+    PortScan precision 0.9130  recall 0.9333
+  BruteForce precision 0.9011  recall 0.9111
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         272          13           8           7
+         DoS           6          72           0           2
+    PortScan           6           0          84           0
+  BruteForce           6           2           0          82
+
+=== data\held_GoldenEye.csv (200 rows) ===
+Accuracy 0.6950 | macro-F1 0.8201 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.8050 | alert precision 1.0000 (161 flagged)
+Prediction time: 3.91 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.6950
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          39         139           0          22
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE portdur held-out GoldenEye 
+Decision Tree, maxDepth 6, minLeaf 2, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 6, 75 nodes, 38 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Flow Duration <= -0.971:
+  if Destination Port <= 1.941:
+    if Destination Port <= 0.207:
+      ... (subtree, 83 rows, mostly BENIGN)
+    else:
+      ... (subtree, 337 rows, mostly PortScan)
+  else:
+    if Destination Port <= 2.119:
+      ... (subtree, 62 rows, mostly BENIGN)
+    else:
+      ... (subtree, 124 rows, mostly BENIGN)
+else:
+  if Destination Port <= -1.063:
+    if Destination Port <= -1.710:
+      -> BENIGN  (2 rows)
+    else:
+      ... (subtree, 174 rows, mostly BruteForce)
+  else:
+    if Destination Port <= -0.618:
+      ... (subtree, 531 rows, mostly BENIGN)
+    else:
+      ... (subtree, 924 rows, mostly BENIGN)
+
+Feature importance (share of total Gini decrease):
+  Destination Port            0.667
+  Flow Duration               0.333
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9179 | macro-F1 0.9059 | FPR 0.0933 (28 of 300 benign flagged) | detection rate 0.9692 | alert precision 0.9000 (280 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9714  recall 0.9067
+         DoS precision 0.8276  recall 0.9000
+    PortScan precision 0.9213  recall 0.9111
+  BruteForce precision 0.8462  recall 0.9778
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         272          14           6           8
+         DoS           1          72           0           7
+    PortScan           7           0          82           1
+  BruteForce           0           1           1          88
+
+=== data\held_GoldenEye.csv (200 rows) ===
+Accuracy 0.0750 | macro-F1 0.1395 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.9450 | alert precision 1.0000 (189 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.0750
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          11          15           0         174
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN portdur held-out DDoS 
+KNN Manhattan, K=5, weighted=0, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9125 | macro-F1 0.9058 | FPR 0.0867 (26 of 300 benign flagged) | detection rate 0.9231 | alert precision 0.9023 (266 flagged)
+Prediction time: 11.84 ms
+      BENIGN precision 0.9320  recall 0.9133
+         DoS precision 0.8372  recall 0.9000
+    PortScan precision 0.9130  recall 0.9333
+  BruteForce precision 0.9205  recall 0.9000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         274          12           8           6
+         DoS           7          72           0           1
+    PortScan           6           0          84           0
+  BruteForce           7           2           0          81
+
+=== data\held_DDoS.csv (200 rows) ===
+Accuracy 0.4650 | macro-F1 0.6348 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.5200 | alert precision 1.0000 (104 flagged)
+Prediction time: 5.61 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.4650
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          96          93           0          11
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE portdur held-out DDoS 
+Decision Tree, maxDepth 6, minLeaf 2, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 6, 85 nodes, 43 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Flow Duration <= -0.976:
+  if Destination Port <= 1.941:
+    if Destination Port <= 0.207:
+      ... (subtree, 84 rows, mostly BENIGN)
+    else:
+      ... (subtree, 337 rows, mostly PortScan)
+  else:
+    if Destination Port <= 2.119:
+      ... (subtree, 62 rows, mostly BENIGN)
+    else:
+      ... (subtree, 124 rows, mostly BENIGN)
+else:
+  if Flow Duration <= 0.901:
+    if Destination Port <= -1.063:
+      ... (subtree, 65 rows, mostly BruteForce)
+    else:
+      ... (subtree, 764 rows, mostly BENIGN)
+  else:
+    if Flow Duration <= 1.029:
+      ... (subtree, 369 rows, mostly BruteForce)
+    else:
+      ... (subtree, 432 rows, mostly DoS)
+
+Feature importance (share of total Gini decrease):
+  Flow Duration               0.535
+  Destination Port            0.465
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9196 | macro-F1 0.9058 | FPR 0.0700 (21 of 300 benign flagged) | detection rate 0.9462 | alert precision 0.9213 (267 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9522  recall 0.9300
+         DoS precision 0.8415  recall 0.8625
+    PortScan precision 0.9213  recall 0.9111
+  BruteForce precision 0.8854  recall 0.9444
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         279          10           6           5
+         DoS           6          69           0           5
+    PortScan           7           0          82           1
+  BruteForce           1           3           1          85
+
+=== data\held_DDoS.csv (200 rows) ===
+Accuracy 0.1800 | macro-F1 0.3051 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.3700 | alert precision 1.0000 (74 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.1800
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS         126          36           0          38
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN portdur held-out FTP 
+KNN Manhattan, K=5, weighted=0, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (555 rows) ===
+Accuracy 0.8883 | macro-F1 0.8712 | FPR 0.1000 (30 of 300 benign flagged) | detection rate 0.9059 | alert precision 0.8851 (261 flagged)
+Prediction time: 12.39 ms
+      BENIGN precision 0.9184  recall 0.9000
+         DoS precision 0.8468  recall 0.8750
+    PortScan precision 0.8889  recall 0.8889
+  BruteForce precision 0.8085  recall 0.8444
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         270          16          10           4
+         DoS          10         105           0           5
+    PortScan          10           0          80           0
+  BruteForce           4           3           0          38
+
+=== data\held_FTP.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.3600 | alert precision 1.0000 (81 flagged)
+Prediction time: 3.78 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         144           0          81           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE portdur held-out FTP 
+Decision Tree, maxDepth 6, minLeaf 2, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 6, 83 nodes, 42 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Flow Duration <= -1.017:
+  if Destination Port <= 1.989:
+    if Destination Port <= 0.175:
+      ... (subtree, 80 rows, mostly BENIGN)
+    else:
+      ... (subtree, 337 rows, mostly PortScan)
+  else:
+    if Destination Port <= 2.173:
+      ... (subtree, 58 rows, mostly BENIGN)
+    else:
+      ... (subtree, 121 rows, mostly BENIGN)
+else:
+  if Destination Port <= -0.687:
+    if Destination Port <= -0.958:
+      ... (subtree, 8 rows, mostly BENIGN)
+    else:
+      -> BENIGN  (528 rows)
+  else:
+    if Destination Port <= -0.508:
+      ... (subtree, 753 rows, mostly DoS)
+    else:
+      ... (subtree, 332 rows, mostly BENIGN)
+
+Feature importance (share of total Gini decrease):
+  Destination Port            0.610
+  Flow Duration               0.390
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9117 | macro-F1 0.8992 | FPR 0.1000 (30 of 300 benign flagged) | detection rate 0.9569 | alert precision 0.8905 (274 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9609  recall 0.9000
+         DoS precision 0.8214  recall 0.9583
+    PortScan precision 0.9213  recall 0.9111
+  BruteForce precision 0.8667  recall 0.8667
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         270          19           7           4
+         DoS           3         115           0           2
+    PortScan           8           0          82           0
+  BruteForce           0           6           0          39
+
+=== data\held_FTP.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.3867 | alert precision 1.0000 (87 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         138           0          87           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### KNN portdur held-out WebBF 
+KNN Manhattan, K=5, weighted=0, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9153 | macro-F1 0.9197 | FPR 0.0867 (26 of 300 benign flagged) | detection rate 0.9216 | alert precision 0.9004 (261 flagged)
+Prediction time: 17.45 ms
+      BENIGN precision 0.9320  recall 0.9133
+         DoS precision 0.8720  recall 0.9083
+    PortScan precision 0.9091  recall 0.8889
+  BruteForce precision 0.9375  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         274          16           8           2
+         DoS          11         109           0           0
+    PortScan           9           0          80           1
+  BruteForce           0           0           0          45
+
+=== data\held_WebBF.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.2444 | alert precision 1.0000 (55 flagged)
+Prediction time: 5.78 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce         170          55           0           0
+
+Report each result once. Do not go back and retune on these numbers.
+##### TREE portdur held-out WebBF 
+Decision Tree, maxDepth 6, minLeaf 2, feature set 'portdur' (2 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 6, 65 nodes, 33 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Destination Port <= -1.065:
+  if Destination Port <= -1.382:
+    if Destination Port <= -2.070:
+      -> BENIGN  (2 rows)
+    else:
+      -> PortScan  (3 rows)
+  else:
+    if Flow Duration <= -1.431:
+      -> BENIGN  (2 rows)
+    else:
+      ... (subtree, 183 rows, mostly BruteForce)
+else:
+  if Flow Duration <= -0.975:
+    if Destination Port <= 1.959:
+      ... (subtree, 395 rows, mostly PortScan)
+    else:
+      ... (subtree, 179 rows, mostly BENIGN)
+  else:
+    if Destination Port <= -0.618:
+      ... (subtree, 531 rows, mostly BENIGN)
+    else:
+      ... (subtree, 922 rows, mostly DoS)
+
+Feature importance (share of total Gini decrease):
+  Destination Port            0.758
+  Flow Duration               0.242
+
+=== held-out test split (555 rows) ===
+Accuracy 0.9207 | macro-F1 0.9302 | FPR 0.0933 (28 of 300 benign flagged) | detection rate 0.9373 | alert precision 0.8951 (267 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9444  recall 0.9067
+         DoS precision 0.8406  recall 0.9667
+    PortScan precision 0.9286  recall 0.8667
+  BruteForce precision 1.0000  recall 1.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         272          22           6           0
+         DoS           4         116           0           0
+    PortScan          12           0          78           0
+  BruteForce           0           0           0          45
+
+=== data\held_WebBF.csv (225 rows) ===
+Accuracy 0.0000 | macro-F1 0.0000 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.9111 | alert precision 1.0000 (205 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 0.0000  recall 0.0000
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS           0           0           0           0
+    PortScan           0           0           0           0
+  BruteForce          20         205           0           0
+
+Report each result once. Do not go back and retune on these numbers.
