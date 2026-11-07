@@ -1,0 +1,61 @@
+Decision Tree, maxDepth unlim, minLeaf 2, feature set 'all' (20 features). Fitted on p.train only; nothing is retuned on the data below.
+Tree: depth 15, 105 nodes, 53 leaves.
+
+Top of the tree (thresholds are in scaled units: log + z-score):
+if Min Packet Length <= 0.233:
+  if Bwd Packet Length Min <= 0.117:
+    if Bwd Packet Length Std <= 1.885:
+      ... (subtree, 900 rows, mostly BENIGN)
+    else:
+      ... (subtree, 244 rows, mostly DoS)
+  else:
+    if Flow IAT Std <= -0.949:
+      -> PortScan  (351 rows)
+    else:
+      ... (subtree, 39 rows, mostly BENIGN)
+else:
+  -> BENIGN  (703 rows)
+
+Feature importance (share of total Gini decrease):
+  Bwd Packet Length Min       0.220
+  Min Packet Length           0.208
+  Bwd Packet Length Std       0.175
+  Flow IAT Std                0.112
+  Packet Length Variance      0.100
+  Idle Min                    0.041
+  min_seg_size_forward        0.037
+  Init_Win_bytes_forward      0.022
+  Fwd IAT Mean                0.021
+  Flow IAT Mean               0.016
+
+=== held-out test split (560 rows) ===
+Accuracy 0.9714 | macro-F1 0.9702 | FPR 0.0267 (8 of 300 benign flagged) | detection rate 0.9692 | alert precision 0.9692 (260 flagged)
+Prediction time: 0.02 ms
+      BENIGN precision 0.9733  recall 0.9733
+         DoS precision 0.9870  recall 0.9500
+    PortScan precision 0.9783  recall 1.0000
+  BruteForce precision 0.9451  recall 0.9556
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN         292           1           2           5
+         DoS           4          76           0           0
+    PortScan           0           0          90           0
+  BruteForce           4           0           0          86
+
+=== data\held_DDoS.csv (200 rows) ===
+Accuracy 0.6350 | macro-F1 0.7768 | FPR 0.0000 (0 of 0 benign flagged) | detection rate 0.6350 | alert precision 1.0000 (127 flagged)
+Prediction time: 0.00 ms
+      BENIGN precision 0.0000  recall 0.0000
+         DoS precision 1.0000  recall 0.6350
+    PortScan precision 0.0000  recall 0.0000
+  BruteForce precision 0.0000  recall 0.0000
+
+Confusion matrix (rows = true, columns = predicted)
+                  BENIGN         DoS    PortScan  BruteForce
+      BENIGN           0           0           0           0
+         DoS          73         127           0           0
+    PortScan           0           0           0           0
+  BruteForce           0           0           0           0
+
+Report each result once. Do not go back and retune on these numbers.
