@@ -125,7 +125,7 @@ function Dashboard() {
         setDashboardError('')
 
         const response = await fetch(
-          `${API_BASE_URL}/api/dashboard?model=decision_tree`,
+          `${API_BASE_URL}/api/dashboard`,
           { signal: controller.signal }
         )
 
