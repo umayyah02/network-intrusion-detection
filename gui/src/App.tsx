@@ -860,9 +860,11 @@ function ThreatsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   
-const [search, setSearch] = useState('')
-const [attackFilter, setAttackFilter] = useState('All')
-const [selectedThreat, setSelectedThreat] = useState<DetectionResult | null>(null)
+  const [search, setSearch] = useState('')
+  const [attackFilter, setAttackFilter] = useState('All')
+  const [selectedThreat, setSelectedThreat] = useState<DetectionResult | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 20 
 
 
 const filteredThreats = threats.filter((threat) => {
@@ -875,6 +877,17 @@ const filteredThreats = threats.filter((threat) => {
 
   return matchesSearch && matchesAttack
 })
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredThreats.length / pageSize)
+  )
+
+  const safePage = Math.min(currentPage, totalPages)
+
+  const paginatedThreats = filteredThreats.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize
+  )
 
 
   useEffect(() => {
@@ -928,14 +941,22 @@ const filteredThreats = threats.filter((threat) => {
         <input
           type="text"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+          setSearch(event.target.value)
+          setCurrentPage(1)
+          setSelectedThreat(null)
+          }}
           placeholder="Search by record ID or attack type..."
           className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-500"
         />
         
         <select
           value={attackFilter}
-          onChange={(event) => setAttackFilter(event.target.value)}
+          onChange={(event) => {
+          setAttackFilter(event.target.value)
+          setCurrentPage(1)
+          setSelectedThreat(null)
+          }}
           className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-cyan-500"
         >
           <option value="All">All attack types</option>
@@ -982,7 +1003,8 @@ const filteredThreats = threats.filter((threat) => {
               <table className="w-full min-w-[650px] text-left text-sm">
                 <thead className="border-b border-slate-700 text-xs uppercase text-slate-400">
                   <tr>
-                    <th className="px-4 py-3">ID</th>
+                    <th className="px-4 py-3">#</th>
+                    <th className="px-4 py-3">Record ID</th>
                     <th className="px-4 py-3">Attack Type</th>
                     <th className="px-4 py-3">Severity</th>
                     <th className="px-4 py-3">Confidence</th>
@@ -992,8 +1014,12 @@ const filteredThreats = threats.filter((threat) => {
                 </thead>
 
                 <tbody className="divide-y divide-slate-800">
-                  {filteredThreats.slice(0, 20).map((threat) => (
+                  {paginatedThreats.map((threat, index) => (
                     <tr key={threat.id} className="hover:bg-slate-800/40">
+                    <td className="px-4 py-3 text-slate-400">
+                      {(safePage - 1) * pageSize + index + 1}
+                    </td>
+
                     <td className="px-4 py-3">
                       <button
                         type="button"
@@ -1048,9 +1074,41 @@ const filteredThreats = threats.filter((threat) => {
 
               
               <p className="mt-4 text-xs text-slate-500">
-                Showing first {Math.min(20, filteredThreats.length)} of {filteredThreats.length} matching records
+                Showing {(safePage - 1) * pageSize + 1}–
+                {Math.min(safePage * pageSize, filteredThreats.length)}
+                {' '}of {filteredThreats.length} matching records
                 {' '}({threats.length} total predicted malicious records).
               </p>
+
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentPage(safePage - 1)
+                    setSelectedThreat(null)
+                  }}
+                  disabled={safePage === 1}
+                  className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Previous
+                </button>
+
+                <span className="text-sm text-slate-400">
+                  Page {safePage} of {totalPages}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentPage(safePage + 1)
+                    setSelectedThreat(null)
+                  }}
+                  disabled={safePage === totalPages}
+                  className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
 
             </div>
           )}
