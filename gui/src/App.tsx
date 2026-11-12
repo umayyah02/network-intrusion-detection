@@ -130,6 +130,16 @@ function Dashboard() {
         )
 
         if (!response.ok) {
+          if (response.status === 409) {
+            const errorBody = await response.json().catch(() => null)
+            if (errorBody?.error?.code === 'NO_RESULTS') {
+              if (!controller.signal.aborted) {
+                setDashboardData(null)
+                setDashboardError('')
+              }
+              return
+            }
+          }
           throw new Error(`Dashboard API error: ${response.status}`)
         }
 
@@ -173,7 +183,7 @@ function Dashboard() {
 
       {!dashboardLoading && !dashboardError && !dashboardData && (
         <p className="text-slate-400">
-          No dashboard results available.
+          No detection results available. Run detection first.
         </p>
       )}
 
@@ -618,80 +628,163 @@ async function handleLoadDataset() {
 
 
 function DetectionPage() {
-  const [demoMessage, setDemoMessage] = useState('No detection job has been run.')
+  const [demoMessage, setDemoMessage] = useState('Checking previous detection results...')
   const [selectedModel, setSelectedModel] = useState<'decision_tree' | 'knn'>('decision_tree')
   const [runningDetection, setRunningDetection] = useState(false)
   const [detectionProgress, setDetectionProgress] = useState(0)
   const [pollingDetection, setPollingDetection] = useState(false)
   const [detectionResults, setDetectionResults] = useState<DetectionResult[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalRecords, setTotalRecords] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [resultsRevision, setResultsRevision] = useState(0)
+  const pageSize = 20
+
+  // F-03: On page open or browser refresh, restore the existing backend job.
+  // This is GET only: it NEVER retrains the model.
+  useEffect(() => {
+    let active = true
+
+    async function restoreDetectionStatus() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/detect/status`)
+        if (!response.ok) return
+        const status = await response.json()
+        if (!active || status.type !== 'detect') return
+
+        if (status.model === 'knn' || status.model === 'decision_tree') {
+          setSelectedModel(status.model)
+        }
+        if (status.state === 'running') {
+          setRunningDetection(true)
+          setPollingDetection(true)
+          setDetectionProgress(status.progress ?? 0)
+          setDemoMessage('Detection is running...')
+        } else if (status.state === 'done') {
+          setDetectionProgress(1)
+          setDemoMessage('Previous detection completed successfully.')
+        } else if (status.state === 'failed') {
+          setDemoMessage(status.message || 'Previous detection failed.')
+        }
+      } catch {
+        // The results request below will surface any relevant API error.
+      }
+    }
+
+    void restoreDetectionStatus()
+    return () => { active = false }
+  }, [])
+
+  // F-03 and F-05: Load the requested page from backend; restore on remount.
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadDetectionPage() {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/detections?page=${currentPage}&pageSize=${pageSize}`,
+          { signal: controller.signal }
+        )
+
+        if (response.status === 409) {
+          const errorBody = await response.json().catch(() => null)
+          if (errorBody?.error?.code === 'NO_RESULTS') {
+            if (!controller.signal.aborted) {
+              setDetectionResults([])
+              setTotalRecords(0)
+              setTotalPages(1)
+              setDemoMessage(previous =>
+                previous === 'Checking previous detection results...'
+                  ? 'No detection job has been run.'
+                  : previous
+              )
+            }
+            return
+          }
+        }
+        if (!response.ok) {
+          throw new Error(`Detections API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        if (controller.signal.aborted) return
+        setDetectionResults(data.items ?? [])
+        setTotalRecords(data.total ?? 0)
+        setTotalPages(data.pages ?? 1)
+        if (data.pages && currentPage > data.pages) {
+          setCurrentPage(data.pages)
+        }
+        setDemoMessage(previous =>
+          previous === 'Checking previous detection results...' ||
+          previous === 'No detection job has been run.'
+            ? 'Previous detection results restored.'
+            : previous
+        )
+      } catch (error) {
+        if (controller.signal.aborted) return
+        setDemoMessage(error instanceof Error ? error.message : 'Failed to load detection results')
+      }
+    }
+
+    void loadDetectionPage()
+    return () => controller.abort()
+  }, [currentPage, resultsRevision])
+
+  // Resume status polling when a running job is found on page reopen.
   useEffect(() => {
     if (!pollingDetection) return
+    let active = true
+    let checking = false
 
-    const interval = setInterval(() => {
-      checkDetectionStatus()
-    }, 500)
+    async function checkDetectionStatus() {
+      if (checking) return
+      checking = true
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/detect/status`)
+        if (!response.ok) throw new Error(`Status API error: ${response.status}`)
+        const status = await response.json()
+        if (!active) return
 
-    return () => clearInterval(interval)
+        if (status.type !== 'detect') {
+          setRunningDetection(false)
+          setPollingDetection(false)
+          return
+        }
+        setDetectionProgress(status.progress ?? 0)
+        if (status.state === 'running') {
+          setDemoMessage('Detection is running...')
+        } else if (status.state === 'done') {
+          setRunningDetection(false)
+          setPollingDetection(false)
+          setDetectionProgress(1)
+          setDemoMessage('Detection completed successfully!')
+          setCurrentPage(1)
+          setResultsRevision(value => value + 1)
+        } else if (status.state === 'failed') {
+          setRunningDetection(false)
+          setPollingDetection(false)
+          setDemoMessage(status.message || 'Detection failed.')
+        }
+      } catch (error) {
+        if (!active) return
+        setRunningDetection(false)
+        setPollingDetection(false)
+        setDemoMessage(error instanceof Error ? error.message : 'Failed to check detection status')
+      } finally {
+        checking = false
+      }
+    }
+
+    void checkDetectionStatus()
+    const interval = window.setInterval(() => { void checkDetectionStatus() }, 500)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [pollingDetection])
-  
-async function fetchDetectionResults() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/detections`)
 
-    if (!response.ok) {
-      throw new Error(`Detections API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-    setDetectionResults(data.items ?? [])
-  } catch (err) {
-    setDemoMessage(
-      err instanceof Error ? err.message : 'Failed to fetch detection results'
-    )
-  }
-}
-
-  async function checkDetectionStatus() {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/detect/status`
-      )
-
-      if (!response.ok) {
-        throw new Error(`Status API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      setDetectionProgress(data.progress ?? 0)
-      setDemoMessage(data.message ?? 'Detection is running...')
-
-      
-      if (data.state === 'done') {
-        setRunningDetection(false)
-        setPollingDetection(false)
-        setDetectionProgress(1)
-        setDemoMessage('Detection completed successfully!')
-        await fetchDetectionResults()
-      }
-
-
-      if (data.state === 'failed') {
-        setRunningDetection(false)
-        setPollingDetection(false)
-        setDemoMessage(data.message ?? 'Detection failed.')
-      }
-    } catch (err) {
-      setRunningDetection(false)
-      setPollingDetection(false)
-      setDemoMessage(
-        err instanceof Error ? err.message : 'Failed to check detection status'
-      )
-    }
-  }
   async function handleRunDetection() {
     if (runningDetection) return
-
     setRunningDetection(true)
     setDetectionProgress(0)
     setDemoMessage('Starting detection...')
@@ -699,36 +792,22 @@ async function fetchDetectionResults() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/detect`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: selectedModel }),
       })
-
       const data = await response.json()
-
       if (!response.ok) {
-        throw new Error(
-          data.error?.message ?? `API error: ${response.status}`
-        )
+        throw new Error(data.error?.message ?? `API error: ${response.status}`)
       }
-
-      setDemoMessage(
-        `${selectedModel === 'decision_tree' ? 'Decision Tree' : 'KNN'} detection started successfully.`
-      )
+      setDemoMessage('Detection started successfully.')
       setPollingDetection(true)
-    } catch (err) {
-        setDemoMessage(
-          err instanceof Error ? err.message : 'Failed to start detection'
-        )
-        setRunningDetection(false)
-        setPollingDetection(false)
-      }
+    } catch (error) {
+      setDemoMessage(error instanceof Error ? error.message : 'Failed to start detection')
+      setRunningDetection(false)
+      setPollingDetection(false)
+    }
   }
 
-  
   return (
     <div>
       <PageHeading
@@ -803,13 +882,13 @@ async function fetchDetectionResults() {
       
 
       
-      {detectionResults.length > 0 && (
+      {totalRecords > 0 && (
         <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
           <h3 className="font-semibold text-white">
             Real Detection Results
           </h3>
           <p className="mt-2 text-sm text-slate-400">
-            {detectionResults.length} classification records returned by the C++ backend.
+            {totalRecords} classification records available from the C++ backend.
           </p>
           
           <div className="mt-5 overflow-x-auto">
@@ -824,7 +903,7 @@ async function fetchDetectionResults() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {detectionResults.slice(0, 20).map((result) => (
+                {detectionResults.map((result) => (
                   <tr key={result.id}>
                     <td className="px-4 py-3 text-cyan-300">{result.id}</td>
                     <td className="px-4 py-3 text-white">{result.label}</td>
@@ -842,9 +921,30 @@ async function fetchDetectionResults() {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-slate-500">
-            Showing first {Math.min(20, detectionResults.length)} of {detectionResults.length} real records.
-          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-slate-400">
+              Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} real records.
+              {' '}Page {currentPage} of {totalPages}.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                disabled={currentPage <= 1}
+                className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                disabled={currentPage >= totalPages}
+                className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
 
         </div>
       )}
@@ -859,6 +959,7 @@ function ThreatsPage() {
   const [threats, setThreats] = useState<DetectionResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [noDetectionYet, setNoDetectionYet] = useState(false)
   
   const [search, setSearch] = useState('')
   const [attackFilter, setAttackFilter] = useState('All')
@@ -900,11 +1001,31 @@ const filteredThreats = threats.filter((threat) => {
           { signal: controller.signal }
         )
 
-        if (!response.ok) {
-          throw new Error(`Detections API error: ${response.status}`)
-        }
+        
+            if (!response.ok) {
+              if (response.status === 409) {
+                const errorBody = await response.json().catch(() => null)
 
-        const data = await response.json()
+                if (errorBody?.error?.code === 'NO_RESULTS') {
+                  if (!controller.signal.aborted) {
+                    setNoDetectionYet(true)
+                    setThreats([])
+                    setError('')
+                  }
+                  return
+                }
+              }
+
+              throw new Error(`Detections API error: ${response.status}`)
+            }
+
+            const data = await response.json()
+
+            if (!controller.signal.aborted) {
+              setNoDetectionYet(false)
+              setError('')
+            }
+
         setThreats(
           (data.items ?? []).filter(
             (item: DetectionResult) => item.isMalicious
@@ -992,9 +1113,13 @@ const filteredThreats = threats.filter((threat) => {
           
           {!loading && !error && filteredThreats.length === 0 && (
             <p className="mt-6 rounded-xl border border-slate-700 bg-slate-950/50 p-5 text-center text-sm text-slate-400">
-              {threats.length === 0
-                ? 'No predicted malicious records available. Run detection first.'
-                : 'No threats match your search or selected attack type.'}
+              
+              {noDetectionYet
+                ? 'No detection results available. Run detection first.'
+                : threats.length === 0
+                  ? 'No malicious threats detected in the latest run.'
+                  : 'No threats match your search or selected attack type.'}
+
             </p>
           )}
 
@@ -1442,6 +1567,9 @@ function ComplexityPage() {
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState('')
+  const [benchmarkRunning, setBenchmarkRunning] = useState(false)
+  const [benchmarkMessage, setBenchmarkMessage] = useState('')
+  const [previousFinishedAt, setPreviousFinishedAt] = useState<string | null>(null)
 
   async function loadComplexity() {
     const response = await fetch(`${API_BASE_URL}/api/complexity`)
@@ -1481,11 +1609,13 @@ function ComplexityPage() {
     return () => { active = false }
   }, [])
 
+  
   async function runBenchmarks() {
-    if (running) return
+    if (running || benchmarkRunning) return
 
     setRunning(true)
     setError('')
+    setBenchmarkMessage('Starting benchmark...')
 
     try {
       const response = await fetch(
@@ -1501,15 +1631,25 @@ function ComplexityPage() {
         throw new Error(`Benchmark start failed: ${response.status}`)
       }
 
+      setPreviousFinishedAt(data?.finishedAt ?? null)
+
       setData((previous) =>
         previous ? { ...previous, ready: false, runs: [] } : null
       )
+
+      setBenchmarkRunning(true)
+      setBenchmarkMessage('Benchmark in progress...')
+
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start benchmark')
+      setError(
+        err instanceof Error ? err.message : 'Failed to start benchmark'
+      )
+      setBenchmarkMessage('')
     } finally {
       setRunning(false)
     }
   }
+
 
   async function refreshBenchmarks() {
     setLoading(true)
@@ -1523,6 +1663,81 @@ function ComplexityPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!benchmarkRunning) return
+
+    let active = true
+    let checking = false
+    let attempts = 0
+
+    async function checkBenchmarkStatus() {
+      if (checking) return
+      checking = true
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/complexity`
+        )
+
+        if (!response.ok) {
+          throw new Error(`Benchmark status error: ${response.status}`)
+        }
+
+        const result: ComplexityResponse = await response.json()
+
+        if (!active) return
+
+        const completed =
+          result.ready === true &&
+          result.runs.length > 0 &&
+          Boolean(result.finishedAt) &&
+          result.finishedAt !== previousFinishedAt
+
+        if (completed) {
+          setData(result)
+          setBenchmarkRunning(false)
+          setBenchmarkMessage('Benchmark completed successfully!')
+          return
+        }
+
+        attempts++
+
+        if (attempts >= 90) {
+          setBenchmarkRunning(false)
+          setBenchmarkMessage(
+            'Could not confirm completion. Please refresh benchmarks to check.'
+          )
+        }
+
+      } catch (err) {
+        if (!active) return
+
+        setBenchmarkRunning(false)
+        setBenchmarkMessage('')
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to check benchmark status'
+        )
+      } finally {
+        checking = false
+      }
+    }
+
+    void checkBenchmarkStatus()
+
+    const interval = window.setInterval(() => {
+      void checkBenchmarkStatus()
+    }, 2000)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [benchmarkRunning, previousFinishedAt])
+
+
 
   const runs = data?.ready ? data.runs : []
   const selectedRuns = runs
@@ -1558,7 +1773,7 @@ function ComplexityPage() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={refreshBenchmarks}
-          disabled={loading}
+          disabled={loading || running || benchmarkRunning}
           className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-white disabled:opacity-50"
         >
           {loading ? 'Loading...' : 'Refresh benchmarks'}
@@ -1566,23 +1781,32 @@ function ComplexityPage() {
 
         <button
           onClick={runBenchmarks}
-          disabled={running || loading}
+          disabled={running || loading || benchmarkRunning}
           className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50"
         >
-          {running ? 'Starting...' : 'Run new benchmark'}
+          {running
+            ? 'Starting...'
+            : benchmarkRunning
+              ? 'Benchmark running...'
+              : 'Run new benchmark'}
         </button>
       </div>
+
+      {benchmarkMessage && (
+        <p className="rounded-xl border border-cyan-500/30 p-4 text-sm text-cyan-300">
+          {benchmarkMessage}
+        </p>
+      )}
 
       {error && <p className="text-red-400">{error}</p>}
 
       {loading && <p className="text-cyan-300">Loading complexity results...</p>}
 
-      {!loading && data && !data.ready && (
-        <p className="rounded-xl border border-amber-500/30 p-5 text-amber-300">
-          Benchmarks are not ready yet. If a benchmark job is running,
-          wait for completion and click Refresh benchmarks.
-        </p>
-      )}
+            {!loading && data && !data.ready && !benchmarkRunning && !running && (
+              <p className="rounded-xl border border-amber-500/30 p-5 text-amber-300">
+                Benchmarks are not ready yet. Run a new benchmark to generate results.
+              </p>
+            )}
 
       {data && (
         <p className="text-sm text-slate-400">
@@ -1767,7 +1991,15 @@ function ComplexityPage() {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState<Page>('Dashboard')
+  // F-04: Preserve the current page across browser refreshes (same tab).
+  const [activePage, setActivePage] = useState<Page>(() => {
+    const saved = window.sessionStorage.getItem('inids-active-page')
+    return pages.some(page => page.name === saved) ? saved as Page : 'Dashboard'
+  })
+
+  useEffect(() => {
+    window.sessionStorage.setItem('inids-active-page', activePage)
+  }, [activePage])
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   function renderPage() {
