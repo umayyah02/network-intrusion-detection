@@ -215,11 +215,41 @@ int main(int argc, char** argv) {
                 sendJson(res, 200, app.datasets());
             }));
 
+    svr.Get("/api/models", guarded([&](const httplib::Request&, httplib::Response& res) {
+                sendJson(res, 200, app.models());
+            }));
+
     svr.Post("/api/detect", guarded([&](const httplib::Request& req, httplib::Response& res) {
                  sendJson(res, 202, app.startDetect(parseBody(req)));
              }));
 
+    auto predictHandler = [&app](const httplib::Request& req, httplib::Response& res) {
+        std::string rel;
+        std::string model;
+        if (req.is_multipart_form_data()) {
+            if (!req.has_file("file"))
+                throw ApiError(400, "BAD_REQUEST", "A multipart upload needs a form field named 'file'.");
+            const auto f = req.get_file_value("file");
+            rel = app.saveUpload(f.filename, f.content);
+            if (req.has_param("model")) model = req.get_param_value("model");
+        } else {
+            const json b = parseBody(req);
+            if (!b.is_object())
+                throw ApiError(400, "BAD_REQUEST", "Send {\"path\": \"<csv>\", \"model\": \"...\"} or upload a file.");
+            if (b.contains("path") && b["path"].is_string()) rel = b["path"].get<std::string>();
+            else if (b.contains("file") && b["file"].is_string()) rel = b["file"].get<std::string>();
+            else throw ApiError(400, "BAD_REQUEST", "Specify 'path' or 'file' for the dataset to evaluate.");
+            if (b.contains("model") && b["model"].is_string()) model = b["model"].get<std::string>();
+        }
+        sendJson(res, 202, app.startPredict(model, rel));
+    };
+    svr.Post("/api/predict", guarded(predictHandler));
+    svr.Post("/api/evaluate", guarded(predictHandler));
+
     svr.Get("/api/detect/status", guarded([&](const httplib::Request&, httplib::Response& res) {
+                sendJson(res, 200, app.jobStatus());
+            }));
+    svr.Get("/api/predict/status", guarded([&](const httplib::Request&, httplib::Response& res) {
                 sendJson(res, 200, app.jobStatus());
             }));
 
