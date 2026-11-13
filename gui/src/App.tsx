@@ -1800,15 +1800,27 @@ function evaluationModelName(model: EvaluationModel) {
   return model === 'decision_tree' ? 'Decision Tree' : 'KNN'
 }
 
+
 function getMacroMetric(
   report: EvaluationReport | undefined,
   metric: 'precision' | 'recall'
 ) {
-  if (!report || report.metrics.perClass.length === 0) return null
+  if (!report) return null
 
-  const values = report.metrics.perClass.map((item) => item[metric])
-  return values.reduce((sum, value) => sum + value, 0) / values.length
+  const presentClasses = report.metrics.perClass.filter(
+    (item) => item.support > 0
+  )
+
+  if (presentClasses.length === 0) return null
+
+  const total = presentClasses.reduce(
+    (sum, item) => sum + item[metric],
+    0
+  )
+
+  return total / presentClasses.length
 }
+
 
 function ResultsPage() {
   const [evaluation, setEvaluation] = useState<EvaluationResponse | null>(null)
@@ -1857,46 +1869,35 @@ function ResultsPage() {
 
       {!loading && !error && evaluation && (
         <>
+          
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Evaluated Dataset
-                </span>
-                <p className="text-base font-semibold text-white">
-                  {evaluation.datasetName}
-                </p>
-              </div>
-              {evaluation.trainedOn && (
-                <div>
-                  <span className="text-xs uppercase tracking-wider text-slate-400">
-                    Model Trained On
-                  </span>
-                  <p className="text-base font-semibold text-cyan-300">
-                    {evaluation.trainedOn}
-                  </p>
-                </div>
-              )}
-              <div>
-                <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Execution Mode
-                </span>
-                <p className="mt-0.5">
-                  <span
-                    className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                      evaluation.mode === 'predict'
-                        ? 'border border-amber-500/40 bg-amber-500/10 text-amber-300'
-                        : 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                    }`}
-                  >
-                    {evaluation.mode === 'predict'
-                      ? '⚡ Inference (Existing Model — Zero Retraining)'
-                      : '⚙ Training Split (80/20 Test Split)'}
-                  </span>
-                </p>
-              </div>
-            </div>
+            <p className="text-sm text-slate-300">
+              Each model's evaluation dataset, training dataset,
+              and execution mode are shown in its own result card.
+              Compare scores directly only when both models
+              were evaluated on the same test dataset.
+            </p>
           </div>
+
+          
+          {evaluation.models.decision_tree &&
+            evaluation.models.knn &&
+            (!evaluation.models.decision_tree.evaluatedOn ||
+              !evaluation.models.knn.evaluatedOn ||
+              evaluation.models.decision_tree.evaluatedOn !==
+                evaluation.models.knn.evaluatedOn) && (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+                <p className="text-sm font-semibold text-amber-300">
+                  ⚠ Model Comparison Warning
+                </p>
+                <p className="mt-2 text-sm text-amber-200">
+                  These models were evaluated on different datasets,
+                  or their evaluation datasets could not be verified.
+                  Their scores should not be treated as a fair
+                  same-dataset comparison.
+                </p>
+              </div>
+            )}
 
           <h3 className="text-lg font-semibold text-white">
             Side-by-Side Model Evaluation
@@ -1923,12 +1924,14 @@ function ResultsPage() {
               }
 
               const metrics = modelReport.metrics
+              
               const scores = [
                 { name: 'Accuracy', value: metrics.accuracy },
-                { name: 'Precision', value: getMacroMetric(modelReport, 'precision') },
-                { name: 'Recall', value: getMacroMetric(modelReport, 'recall') },
-                { name: 'F1-score', value: metrics.macroF1 }
+                { name: 'Macro Precision', value: getMacroMetric(modelReport, 'precision') },
+                { name: 'Macro Recall', value: getMacroMetric(modelReport, 'recall') },
+                { name: 'Macro F1-score', value: metrics.macroF1 }
               ]
+
 
               return (
                 <div
@@ -1957,6 +1960,14 @@ function ResultsPage() {
                       {modelReport.trainRows ? ` (${modelReport.trainRows.toLocaleString()} rows)` : ''}
                     </p>
                   )}
+
+                      <p className="mt-2 text-xs text-slate-400">
+                        Evaluated on:{' '}
+                        <span className="font-semibold text-cyan-300">
+                          {modelReport.evaluatedOn || 'Not provided by backend'}
+                        </span>
+                      </p>
+
 
                   <div className="mt-5 grid grid-cols-2 gap-3">
                     {scores.map((score) => (
