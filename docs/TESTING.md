@@ -15,7 +15,7 @@ g++ -std=c++17 -Wall -Wextra -Iinclude tests/testdata.cpp src/data/cleaner.cpp s
 On Windows PowerShell, run `.\test_data.exe` instead of `./test_data`.
 Expected last line: `All data-layer tests passed`.
 
-## 2. Tests still to write (Member 4)
+## 2. Automated test suites
 
 | Test file | What it checks | Run it with (planned) |
 |---|---|---|
@@ -70,12 +70,68 @@ Try each one. The program must give a clear error and must not crash.
 
 ## 4. Speed and complexity experiments
 
-1. Use the same prepared sample for both models, with a fixed seed.
-2. Row counts: 1,000, 5,000, 10,000, 25,000, 50,000 (lower if KNN is too slow).
-3. For each size and model, record training time and prediction time. Run 3 times and take the average.
-4. Save results as a CSV: `model,rows,trainSeconds,predictSeconds`.
-5. Plot time against size and compare with the theory (Decision Tree about n log n to train, KNN about n per prediction).
-6. Write down the computer used (CPU and RAM) next to the results.
+### Experiment configuration
+
+- Dataset: `sample_A3.csv`
+- Total records: 4,079
+- Training records: 3,263
+- Test records: 816
+- Models: Decision Tree and KNN
+- Training-data fractions: 10%, 25%, 50%, 100%
+- Repetitions: 3 per configuration
+- Random seed: 42
+
+### Hardware
+
+- CPU: 11th Gen Intel Core i5-1135G7 @ 2.40 GHz
+- RAM: 11.73 GB
+
+### Procedure
+
+1. Load the dataset and use the prepared training and test split.
+2. Train both models using 10%, 25%, 50%, and 100% of the training records.
+3. Use the same full test split (816 records) for every experiment.
+4. Repeat each configuration three times and record average training and prediction times.
+5. Save measurements in `complexity_results_A3.csv` using the format:
+   `model,rows,trainSeconds,predictSeconds`.
+6. Generate training-time and prediction-time graphs using `plot_complexity.py`.
+7. Compare measured trends with theoretical algorithm complexity.
+
+
+### Results and observations
+
+Average execution times across 3 repetitions:
+
+| Model | Training records | Training time (seconds) | Prediction time (seconds) |
+|---|---:|---:|---:|
+| Decision Tree | 327 | 0.002587 | 0.000111 |
+| Decision Tree | 817 | 0.005913 | 0.000045 |
+| Decision Tree | 1,632 | 0.011190 | 0.000039 |
+| Decision Tree | 3,263 | 0.033283 | 0.000057 |
+| KNN | 327 | 0.000034 | 0.005613 |
+| KNN | 817 | 0.000115 | 0.031201 |
+| KNN | 1,632 | 0.000166 | 0.047061 |
+| KNN | 3,263 | 0.000364 | 0.075309 |
+
+Observations:
+
+- Decision Tree training time increased as the training dataset grew.
+- Decision Tree prediction remained very fast, with small variations between measurements.
+- KNN training time remained comparatively low.
+- KNN prediction time increased substantially with training-data size.
+- These observations broadly align with the expected behaviour of both algorithms.
+- All configurations used the same 816 test records.
+
+### Memory measurement limitation
+
+Memory usage was not returned by the backend (`memoryBytes: null`) and is therefore reported as unavailable rather than estimated.
+
+### Evidence files
+
+- `complexity_results_A3.csv`
+- `complexity_training.png`
+- `complexity_prediction.png`
+- `plot_complexity.py`
 
 ## 5. Definition of done
 
