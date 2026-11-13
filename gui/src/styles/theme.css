@@ -1,0 +1,71 @@
+/*
+ * INIDS design tokens (Tailwind v4).
+ * Import once, right after `@import "tailwindcss";` in index.css:
+ *   @import "./styles/theme.css";
+ * Change the look here only. Components use these tokens, not raw hex values.
+ */
+@theme {
+  /* Base and surfaces */
+  --color-void: #04100d;
+  --color-panel: rgb(14 44 37 / 0.5);
+  --color-panel-solid: #0a2019;
+  --color-line: rgb(52 211 153 / 0.18);
+  --color-line-strong: rgb(52 211 153 / 0.4);
+
+  /* Text */
+  --color-fg: #e6f5ef;
+  --color-muted: #8fb3a6;
+
+  /* Accents */
+  --color-accent: #34d399;
+  --color-accent-soft: rgb(52 211 153 / 0.14);
+  --color-accent-fg: #03231a;
+  --color-teal: #2dd4bf;
+
+  /* Severity (always pair with a text label, never color alone) */
+  --color-sev-high: #fb7185;
+  --color-sev-high-soft: rgb(251 113 133 / 0.16);
+  --color-sev-high-fg: #fda4af;
+  --color-sev-medium: #fbbf24;
+  --color-sev-medium-soft: rgb(251 191 36 / 0.15);
+  --color-sev-medium-fg: #fcd34d;
+  --color-sev-low: #2dd4bf;
+  --color-sev-low-soft: rgb(45 212 191 / 0.15);
+  --color-sev-low-fg: #5eead4;
+
+  /* Radii */
+  --radius-glass: 16px;
+  --radius-glass-lg: 20px;
+
+  /* Glow and depth */
+  --shadow-glass: 0 0 40px rgb(16 185 129 / 0.06), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-glow: 0 0 24px rgb(52 211 153 / 0.4);
+  --shadow-glow-warn: 0 0 24px rgb(251 191 36 / 0.35);
+  --shadow-glow-danger: 0 0 24px rgb(251 113 133 / 0.4);
+
+  /* Type */
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Motion */
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  @keyframes shimmer {
+    0% { opacity: 0.45; }
+    50% { opacity: 0.9; }
+    100% { opacity: 0.45; }
+  }
+}
+
+/* Glass surface: translucent, blurred, 1px border, soft glow */
+@utility glass {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-glass);
+  box-shadow: var(--shadow-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --animate-shimmer: none; }
+}
