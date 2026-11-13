@@ -130,6 +130,16 @@ function Dashboard() {
         )
 
         if (!response.ok) {
+          if (response.status === 409) {
+            const errorBody = await response.json().catch(() => null)
+            if (errorBody?.error?.code === 'NO_RESULTS') {
+              if (!controller.signal.aborted) {
+                setDashboardData(null)
+                setDashboardError('')
+              }
+              return
+            }
+          }
           throw new Error(`Dashboard API error: ${response.status}`)
         }
 
@@ -173,7 +183,7 @@ function Dashboard() {
 
       {!dashboardLoading && !dashboardError && !dashboardData && (
         <p className="text-slate-400">
-          No dashboard results available.
+          No detection results available. Run detection first.
         </p>
       )}
 
@@ -631,7 +641,7 @@ type RetainedModelInfo = {
 
 function DetectionPage() {
   const [activeWorkflow, setActiveWorkflow] = useState<'train' | 'predict'>('train')
-  const [demoMessage, setDemoMessage] = useState('No detection or inference job has been run.')
+  const [demoMessage, setDemoMessage] = useState('Checking previous detection results...')
   const [selectedModel, setSelectedModel] = useState<'decision_tree' | 'knn'>('decision_tree')
   const [knnDistance, setKnnDistance] = useState<'euclidean' | 'manhattan'>('euclidean')
   const [runningDetection, setRunningDetection] = useState(false)
@@ -661,14 +671,169 @@ function DetectionPage() {
     fetchLoadedDataset()
   }, [])
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalRecords, setTotalRecords] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [resultsRevision, setResultsRevision] = useState(0)
+  const [resultModel, setResultModel] = useState<'decision_tree' | 'knn' | ''>('')
+  const pageSize = 20
+
+  // F-03: On page open or browser refresh, restore the existing backend job.
+  // This is GET only: it NEVER retrains the model.
+  useEffect(() => {
+    let active = true
+
+    async function restoreDetectionStatus() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/detect/status`)
+        if (!response.ok) return
+        const status = await response.json()
+        if (!active || (status.type !== 'detect' && status.type !== 'predict')) return
+
+        setActiveWorkflow(status.type === 'predict' ? 'predict' : 'train')
+
+        if (status.model === 'knn' || status.model === 'decision_tree') {
+          setSelectedModel(status.model)
+          setResultModel(status.model)
+        }
+        if (status.state === 'running') {
+          setRunningDetection(true)
+          setPollingDetection(true)
+          setDetectionProgress(status.progress ?? 0)
+          setDemoMessage(status.type === 'predict' ? 'Prediction is running...' : 'Training is running...')
+        } else if (status.state === 'done') {
+          setDetectionProgress(1)
+          setDemoMessage('Previous job completed successfully.')
+        } else if (status.state === 'failed') {
+          setDemoMessage(status.message || 'Previous detection failed.')
+        }
+      } catch {
+        // The results request below will surface any relevant API error.
+      }
+    }
+
+    void restoreDetectionStatus()
+    return () => { active = false }
+  }, [])
+
+  // F-03 and F-05: Load the requested page from backend; restore on remount.
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadDetectionPage() {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/detections?page=${currentPage}&pageSize=${pageSize}${resultModel ? `&model=${resultModel}` : ''}`,
+          { signal: controller.signal }
+        )
+
+        if (response.status === 409) {
+          const errorBody = await response.json().catch(() => null)
+          if (errorBody?.error?.code === 'NO_RESULTS') {
+            if (!controller.signal.aborted) {
+              setDetectionResults([])
+              setTotalRecords(0)
+              setTotalPages(1)
+              setDetectionMeta(null)
+              setDemoMessage(previous =>
+                previous === 'Checking previous detection results...'
+                  ? 'No detection job has been run.'
+                  : previous
+              )
+            }
+            return
+          }
+        }
+        if (!response.ok) {
+          throw new Error(`Detections API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        if (controller.signal.aborted) return
+        setDetectionResults(data.items ?? [])
+        setTotalRecords(data.total ?? 0)
+        setTotalPages(data.pages ?? 1)
+        setDetectionMeta({
+          model: data.model,
+          datasetName: data.datasetName,
+          trainedOn: data.trainedOn,
+          evaluatedOn: data.evaluatedOn,
+          mode: data.mode,
+          total: data.total,
+        })
+        if (data.pages && currentPage > data.pages) {
+          setCurrentPage(data.pages)
+        }
+        setDemoMessage(previous =>
+          previous === 'Checking previous detection results...' ||
+          previous === 'No detection job has been run.'
+            ? 'Previous detection results restored.'
+            : previous
+        )
+      } catch (error) {
+        if (controller.signal.aborted) return
+        setDemoMessage(error instanceof Error ? error.message : 'Failed to load detection results')
+      }
+    }
+
+    void loadDetectionPage()
+    return () => controller.abort()
+  }, [currentPage, resultsRevision, resultModel])
+
   useEffect(() => {
     if (!pollingDetection) return
+    let active = true
+    let checking = false
 
-    const interval = setInterval(() => {
-      checkDetectionStatus()
-    }, 500)
+    async function checkDetectionStatus() {
+      if (checking) return
+      checking = true
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/detect/status`)
+        if (!response.ok) throw new Error(`Status API error: ${response.status}`)
+        const status = await response.json()
+        if (!active) return
 
-    return () => clearInterval(interval)
+        if (status.type !== 'detect' && status.type !== 'predict') {
+          setRunningDetection(false)
+          setPollingDetection(false)
+          return
+        }
+        setDetectionProgress(status.progress ?? 0)
+        if (status.state === 'running') {
+          setDemoMessage(status.type === 'predict' ? 'Prediction is running...' : 'Training is running...')
+        } else if (status.state === 'done') {
+          setRunningDetection(false)
+          setPollingDetection(false)
+          setDetectionProgress(1)
+          setDemoMessage(status.type === 'predict' ? 'Prediction completed successfully!' : 'Training completed successfully!')
+          void fetchTrainedModels()
+          if (status.model === 'knn' || status.model === 'decision_tree') {
+            setResultModel(status.model)
+          }
+          setCurrentPage(1)
+          setResultsRevision(value => value + 1)
+        } else if (status.state === 'failed') {
+          setRunningDetection(false)
+          setPollingDetection(false)
+          setDemoMessage(status.message || 'Detection failed.')
+        }
+      } catch (error) {
+        if (!active) return
+        setRunningDetection(false)
+        setPollingDetection(false)
+        setDemoMessage(error instanceof Error ? error.message : 'Failed to check detection status')
+      } finally {
+        checking = false
+      }
+    }
+
+    void checkDetectionStatus()
+    const interval = window.setInterval(() => { void checkDetectionStatus() }, 500)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [pollingDetection])
 
   async function fetchTrainedModels() {
@@ -715,73 +880,15 @@ function DetectionPage() {
     }
   }
 
-  async function fetchDetectionResults() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/detections`)
-
-      if (!response.ok) {
-        throw new Error(`Detections API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-      setDetectionResults(data.items ?? [])
-      setDetectionMeta({
-        model: data.model,
-        datasetName: data.datasetName,
-        trainedOn: data.trainedOn,
-        evaluatedOn: data.evaluatedOn,
-        mode: data.mode,
-        total: data.total,
-      })
-    } catch (err) {
-      setDemoMessage(
-        err instanceof Error ? err.message : 'Failed to fetch detection results'
-      )
-    }
-  }
-
-  async function checkDetectionStatus() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/detect/status`)
-
-      if (!response.ok) {
-        throw new Error(`Status API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      setDetectionProgress(data.progress ?? 0)
-      setDemoMessage(data.message ?? 'Job is running...')
-
-      if (data.state === 'done') {
-        setRunningDetection(false)
-        setPollingDetection(false)
-        setDetectionProgress(1)
-        setDemoMessage('Completed successfully!')
-        await fetchDetectionResults()
-        await fetchTrainedModels()
-      }
-
-      if (data.state === 'failed') {
-        setRunningDetection(false)
-        setPollingDetection(false)
-        setDemoMessage(data.message ?? 'Job failed.')
-      }
-    } catch (err) {
-      setRunningDetection(false)
-      setPollingDetection(false)
-      setDemoMessage(
-        err instanceof Error ? err.message : 'Failed to check status'
-      )
-    }
-  }
-
   async function handleRunTrainAndEvaluate() {
     if (runningDetection) return
-
     setRunningDetection(true)
     setDetectionProgress(0)
+    setResultModel(selectedModel)
     setDemoMessage('Starting model training...')
+    setDetectionResults([])
+    setTotalRecords(0)
+    setDetectionMeta(null)
 
     try {
       const params: Record<string, unknown> = {}
@@ -800,9 +907,7 @@ function DetectionPage() {
           params: Object.keys(params).length > 0 ? params : undefined,
         }),
       })
-
       const data = await response.json()
-
       if (!response.ok) {
         throw new Error(data.error?.message ?? `API error: ${response.status}`)
       }
@@ -823,7 +928,11 @@ function DetectionPage() {
 
     setRunningDetection(true)
     setDetectionProgress(0)
+    setResultModel(selectedModel)
     setDemoMessage('Starting inference on test dataset...')
+    setDetectionResults([])
+    setTotalRecords(0)
+    setDetectionMeta(null)
 
     try {
       let response: Response
@@ -891,7 +1000,7 @@ function DetectionPage() {
           ⚙ Mode 1: Train & Evaluate (80/20 Split)
         </button>
         <button
-          onClick={() => setActiveWorkflow('predict')}
+          onClick={() => { setActiveWorkflow('predict'); void fetchTrainedModels() }}
           className={`flex-1 rounded-xl px-5 py-3 text-sm font-semibold transition ${
             activeWorkflow === 'predict'
               ? 'bg-cyan-500 text-slate-950 shadow-lg'
@@ -1175,7 +1284,7 @@ function DetectionPage() {
       </div>
 
       {/* Results Section */}
-      {detectionResults.length > 0 && (
+      {!runningDetection && totalRecords > 0 && (
         <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
           {/* Metadata banner */}
           <div className="mb-5 rounded-xl border border-slate-800 bg-slate-950/80 p-4">
@@ -1221,7 +1330,7 @@ function DetectionPage() {
 
           <h3 className="font-semibold text-white">Classification Results</h3>
           <p className="mt-1 text-sm text-slate-400">
-            {detectionResults.length} records evaluated by the C++ backend using{' '}
+            {totalRecords} records evaluated by the C++ backend using{' '}
             <span className="text-cyan-300">
               {detectionMeta?.model === 'decision_tree' ? 'Decision Tree' : 'KNN'}
             </span>
@@ -1240,7 +1349,7 @@ function DetectionPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {detectionResults.slice(0, 20).map((result) => (
+                {detectionResults.map((result) => (
                   <tr key={result.id}>
                     <td className="px-4 py-3 text-cyan-300">{result.id}</td>
                     <td className="px-4 py-3 text-white font-medium">{result.label}</td>
@@ -1258,9 +1367,31 @@ function DetectionPage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-slate-500">
-            Showing first {Math.min(20, detectionResults.length)} of {detectionResults.length} records. See Results & Evaluation page for full confusion matrix and metrics.
-          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-slate-400">
+              Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} real records.
+              {' '}Page {currentPage} of {totalPages}.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                disabled={currentPage <= 1}
+                className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                disabled={currentPage >= totalPages}
+                className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+
         </div>
       )}
     </div>
@@ -1271,6 +1402,7 @@ function ThreatsPage() {
   const [threats, setThreats] = useState<DetectionResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [noDetectionYet, setNoDetectionYet] = useState(false)
   
   const [search, setSearch] = useState('')
   const [attackFilter, setAttackFilter] = useState('All')
@@ -1312,11 +1444,31 @@ const filteredThreats = threats.filter((threat) => {
           { signal: controller.signal }
         )
 
-        if (!response.ok) {
-          throw new Error(`Detections API error: ${response.status}`)
-        }
+        
+            if (!response.ok) {
+              if (response.status === 409) {
+                const errorBody = await response.json().catch(() => null)
 
-        const data = await response.json()
+                if (errorBody?.error?.code === 'NO_RESULTS') {
+                  if (!controller.signal.aborted) {
+                    setNoDetectionYet(true)
+                    setThreats([])
+                    setError('')
+                  }
+                  return
+                }
+              }
+
+              throw new Error(`Detections API error: ${response.status}`)
+            }
+
+            const data = await response.json()
+
+            if (!controller.signal.aborted) {
+              setNoDetectionYet(false)
+              setError('')
+            }
+
         setThreats(
           (data.items ?? []).filter(
             (item: DetectionResult) => item.isMalicious
@@ -1404,9 +1556,13 @@ const filteredThreats = threats.filter((threat) => {
           
           {!loading && !error && filteredThreats.length === 0 && (
             <p className="mt-6 rounded-xl border border-slate-700 bg-slate-950/50 p-5 text-center text-sm text-slate-400">
-              {threats.length === 0
-                ? 'No predicted malicious records available. Run detection first.'
-                : 'No threats match your search or selected attack type.'}
+              
+              {noDetectionYet
+                ? 'No detection results available. Run detection first.'
+                : threats.length === 0
+                  ? 'No malicious threats detected in the latest run.'
+                  : 'No threats match your search or selected attack type.'}
+
             </p>
           )}
 
@@ -1644,15 +1800,27 @@ function evaluationModelName(model: EvaluationModel) {
   return model === 'decision_tree' ? 'Decision Tree' : 'KNN'
 }
 
+
 function getMacroMetric(
   report: EvaluationReport | undefined,
   metric: 'precision' | 'recall'
 ) {
-  if (!report || report.metrics.perClass.length === 0) return null
+  if (!report) return null
 
-  const values = report.metrics.perClass.map((item) => item[metric])
-  return values.reduce((sum, value) => sum + value, 0) / values.length
+  const presentClasses = report.metrics.perClass.filter(
+    (item) => item.support > 0
+  )
+
+  if (presentClasses.length === 0) return null
+
+  const total = presentClasses.reduce(
+    (sum, item) => sum + item[metric],
+    0
+  )
+
+  return total / presentClasses.length
 }
+
 
 function ResultsPage() {
   const [evaluation, setEvaluation] = useState<EvaluationResponse | null>(null)
@@ -1701,46 +1869,35 @@ function ResultsPage() {
 
       {!loading && !error && evaluation && (
         <>
+          
           <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Evaluated Dataset
-                </span>
-                <p className="text-base font-semibold text-white">
-                  {evaluation.datasetName}
-                </p>
-              </div>
-              {evaluation.trainedOn && (
-                <div>
-                  <span className="text-xs uppercase tracking-wider text-slate-400">
-                    Model Trained On
-                  </span>
-                  <p className="text-base font-semibold text-cyan-300">
-                    {evaluation.trainedOn}
-                  </p>
-                </div>
-              )}
-              <div>
-                <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Execution Mode
-                </span>
-                <p className="mt-0.5">
-                  <span
-                    className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                      evaluation.mode === 'predict'
-                        ? 'border border-amber-500/40 bg-amber-500/10 text-amber-300'
-                        : 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                    }`}
-                  >
-                    {evaluation.mode === 'predict'
-                      ? '⚡ Inference (Existing Model — Zero Retraining)'
-                      : '⚙ Training Split (80/20 Test Split)'}
-                  </span>
-                </p>
-              </div>
-            </div>
+            <p className="text-sm text-slate-300">
+              Each model's evaluation dataset, training dataset,
+              and execution mode are shown in its own result card.
+              Compare scores directly only when both models
+              were evaluated on the same test dataset.
+            </p>
           </div>
+
+          
+          {evaluation.models.decision_tree &&
+            evaluation.models.knn &&
+            (!evaluation.models.decision_tree.evaluatedOn ||
+              !evaluation.models.knn.evaluatedOn ||
+              evaluation.models.decision_tree.evaluatedOn !==
+                evaluation.models.knn.evaluatedOn) && (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+                <p className="text-sm font-semibold text-amber-300">
+                  ⚠ Model Comparison Warning
+                </p>
+                <p className="mt-2 text-sm text-amber-200">
+                  These models were evaluated on different datasets,
+                  or their evaluation datasets could not be verified.
+                  Their scores should not be treated as a fair
+                  same-dataset comparison.
+                </p>
+              </div>
+            )}
 
           <h3 className="text-lg font-semibold text-white">
             Side-by-Side Model Evaluation
@@ -1767,12 +1924,14 @@ function ResultsPage() {
               }
 
               const metrics = modelReport.metrics
+              
               const scores = [
                 { name: 'Accuracy', value: metrics.accuracy },
-                { name: 'Precision', value: getMacroMetric(modelReport, 'precision') },
-                { name: 'Recall', value: getMacroMetric(modelReport, 'recall') },
-                { name: 'F1-score', value: metrics.macroF1 }
+                { name: 'Macro Precision', value: getMacroMetric(modelReport, 'precision') },
+                { name: 'Macro Recall', value: getMacroMetric(modelReport, 'recall') },
+                { name: 'Macro F1-score', value: metrics.macroF1 }
               ]
+
 
               return (
                 <div
@@ -1801,6 +1960,14 @@ function ResultsPage() {
                       {modelReport.trainRows ? ` (${modelReport.trainRows.toLocaleString()} rows)` : ''}
                     </p>
                   )}
+
+                      <p className="mt-2 text-xs text-slate-400">
+                        Evaluated on:{' '}
+                        <span className="font-semibold text-cyan-300">
+                          {modelReport.evaluatedOn || 'Not provided by backend'}
+                        </span>
+                      </p>
+
 
                   <div className="mt-5 grid grid-cols-2 gap-3">
                     {scores.map((score) => (
@@ -1916,6 +2083,9 @@ function ComplexityPage() {
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState('')
+  const [benchmarkRunning, setBenchmarkRunning] = useState(false)
+  const [benchmarkMessage, setBenchmarkMessage] = useState('')
+  const [previousFinishedAt, setPreviousFinishedAt] = useState<string | null>(null)
 
   async function loadComplexity() {
     const response = await fetch(`${API_BASE_URL}/api/complexity`)
@@ -1955,11 +2125,13 @@ function ComplexityPage() {
     return () => { active = false }
   }, [])
 
+  
   async function runBenchmarks() {
-    if (running) return
+    if (running || benchmarkRunning) return
 
     setRunning(true)
     setError('')
+    setBenchmarkMessage('Starting benchmark...')
 
     try {
       const response = await fetch(
@@ -1975,15 +2147,25 @@ function ComplexityPage() {
         throw new Error(`Benchmark start failed: ${response.status}`)
       }
 
+      setPreviousFinishedAt(data?.finishedAt ?? null)
+
       setData((previous) =>
         previous ? { ...previous, ready: false, runs: [] } : null
       )
+
+      setBenchmarkRunning(true)
+      setBenchmarkMessage('Benchmark in progress...')
+
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start benchmark')
+      setError(
+        err instanceof Error ? err.message : 'Failed to start benchmark'
+      )
+      setBenchmarkMessage('')
     } finally {
       setRunning(false)
     }
   }
+
 
   async function refreshBenchmarks() {
     setLoading(true)
@@ -1997,6 +2179,81 @@ function ComplexityPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!benchmarkRunning) return
+
+    let active = true
+    let checking = false
+    let attempts = 0
+
+    async function checkBenchmarkStatus() {
+      if (checking) return
+      checking = true
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/complexity`
+        )
+
+        if (!response.ok) {
+          throw new Error(`Benchmark status error: ${response.status}`)
+        }
+
+        const result: ComplexityResponse = await response.json()
+
+        if (!active) return
+
+        const completed =
+          result.ready === true &&
+          result.runs.length > 0 &&
+          Boolean(result.finishedAt) &&
+          result.finishedAt !== previousFinishedAt
+
+        if (completed) {
+          setData(result)
+          setBenchmarkRunning(false)
+          setBenchmarkMessage('Benchmark completed successfully!')
+          return
+        }
+
+        attempts++
+
+        if (attempts >= 90) {
+          setBenchmarkRunning(false)
+          setBenchmarkMessage(
+            'Could not confirm completion. Please refresh benchmarks to check.'
+          )
+        }
+
+      } catch (err) {
+        if (!active) return
+
+        setBenchmarkRunning(false)
+        setBenchmarkMessage('')
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to check benchmark status'
+        )
+      } finally {
+        checking = false
+      }
+    }
+
+    void checkBenchmarkStatus()
+
+    const interval = window.setInterval(() => {
+      void checkBenchmarkStatus()
+    }, 2000)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [benchmarkRunning, previousFinishedAt])
+
+
 
   const runs = data?.ready ? data.runs : []
   const selectedRuns = runs
@@ -2032,7 +2289,7 @@ function ComplexityPage() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={refreshBenchmarks}
-          disabled={loading}
+          disabled={loading || running || benchmarkRunning}
           className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-white disabled:opacity-50"
         >
           {loading ? 'Loading...' : 'Refresh benchmarks'}
@@ -2040,23 +2297,32 @@ function ComplexityPage() {
 
         <button
           onClick={runBenchmarks}
-          disabled={running || loading}
+          disabled={running || loading || benchmarkRunning}
           className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50"
         >
-          {running ? 'Starting...' : 'Run new benchmark'}
+          {running
+            ? 'Starting...'
+            : benchmarkRunning
+              ? 'Benchmark running...'
+              : 'Run new benchmark'}
         </button>
       </div>
+
+      {benchmarkMessage && (
+        <p className="rounded-xl border border-cyan-500/30 p-4 text-sm text-cyan-300">
+          {benchmarkMessage}
+        </p>
+      )}
 
       {error && <p className="text-red-400">{error}</p>}
 
       {loading && <p className="text-cyan-300">Loading complexity results...</p>}
 
-      {!loading && data && !data.ready && (
-        <p className="rounded-xl border border-amber-500/30 p-5 text-amber-300">
-          Benchmarks are not ready yet. If a benchmark job is running,
-          wait for completion and click Refresh benchmarks.
-        </p>
-      )}
+            {!loading && data && !data.ready && !benchmarkRunning && !running && (
+              <p className="rounded-xl border border-amber-500/30 p-5 text-amber-300">
+                Benchmarks are not ready yet. Run a new benchmark to generate results.
+              </p>
+            )}
 
       {data && (
         <p className="text-sm text-slate-400">
@@ -2241,7 +2507,15 @@ function ComplexityPage() {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState<Page>('Dashboard')
+  // F-04: Preserve the current page across browser refreshes (same tab).
+  const [activePage, setActivePage] = useState<Page>(() => {
+    const saved = window.sessionStorage.getItem('inids-active-page')
+    return pages.some(page => page.name === saved) ? saved as Page : 'Dashboard'
+  })
+
+  useEffect(() => {
+    window.sessionStorage.setItem('inids-active-page', activePage)
+  }, [activePage])
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   function renderPage() {
