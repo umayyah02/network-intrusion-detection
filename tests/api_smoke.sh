@@ -50,6 +50,8 @@ req "files list" 200 '"files"' "$BASE/api/dataset/files"
 req "datasets list" 200 '"datasets"' "$BASE/api/datasets"
 req "datasets: nothing loaded yet" 200 '"status":"Available"' "$BASE/api/datasets"
 
+req "models before training" 200 '"models":\[\]' "$BASE/api/models"
+req "predict before training is refused" 409 'NO_MODEL' -X POST "$BASE/api/predict" -d '{"model":"knn","path":"sample_B.csv"}'
 req "detect before load is refused" 409 'NO_DATASET' -X POST "$BASE/api/detect" -d '{"model":"knn"}'
 req "load: path traversal" 400 'BAD_REQUEST' -X POST "$BASE/api/dataset/load" -d '{"path":"../x.csv"}'
 req "load: missing file" 404 'FILE_NOT_FOUND' -X POST "$BASE/api/dataset/load" -d '{"path":"does_not_exist.csv"}'
@@ -74,6 +76,11 @@ wait_job
 req "knn job finished" 200 '"state":"done"' "$BASE/api/detect/status"
 
 req "metrics (both models)" 200 '"available":\["decision_tree","knn"\]' "$BASE/api/metrics"
+req "models list after training" 200 '"decision_tree"' "$BASE/api/models"
+req "predict with decision_tree" 202 '"state":"running"' -X POST "$BASE/api/predict" -d '{"model":"decision_tree","path":"sample_B.csv"}'
+wait_job
+req "predict job finished" 200 '"state":"done"' "$BASE/api/detect/status"
+req "predict metrics" 200 '"mode":"predict"' "$BASE/api/metrics"
 req "dashboard" 200 '"attackTypes"' "$BASE/api/dashboard?model=knn"
 req "threats" 200 '"items"' "$BASE/api/threats?model=decision_tree&pageSize=5"
 req "summary" 200 '"classCounts"' "$BASE/api/summary?model=knn"

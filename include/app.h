@@ -68,6 +68,21 @@ struct ModelResult {
     std::vector<Detection> rows;  // every test row, ascending by id
     size_t threatCount = 0;       // rows with predicted != 0
     std::string finishedAt;
+    std::string trainedOn;
+    std::string evaluatedOn;
+    std::string mode = "train_eval";  // "train_eval" or "predict"
+};
+
+// A trained model retained in memory for inference on arbitrary CSVs.
+struct RetainedModel {
+    std::string model;  // "decision_tree" or "knn"
+    std::string trainedOnDataset;
+    std::string trainedAt;
+    ModelSpec spec;
+    std::shared_ptr<const PreparedData> prepData;
+    std::shared_ptr<KNN> knn;
+    std::shared_ptr<DecisionTree> tree;
+    std::shared_ptr<const ModelResult> trainResult;
 };
 
 class App {
@@ -87,6 +102,8 @@ public:
     json datasetPreview(size_t limit = 20);
 
     json startDetect(const json& body);      // 202 + job
+    json startPredict(const std::string& model, const std::string& relPath);  // 202 + job (inference only)
+    json models();                           // list of retained trained models
     json startComplexity(const json& body);  // 202 + job
     json jobStatus();
 
@@ -121,7 +138,10 @@ private:
     void update(int jobId, const std::string& stage, double progress);
     void finish(int jobId, const std::string& state, const std::string& message);
 
-    void runDetect(int jobId, const ModelSpec& spec, std::shared_ptr<const PreparedData> data);
+    void runDetect(int jobId, const ModelSpec& spec, std::shared_ptr<const PreparedData> data,
+                   std::string datasetName);
+    void runPredict(int jobId, const std::string& modelName, const std::string& relPath,
+                    RetainedModel retained);
     void runComplexity(int jobId, const std::vector<std::string>& models,
                        const std::vector<double>& fractions, int repeats,
                        std::shared_ptr<const PreparedData> data, std::string datasetName);
@@ -134,6 +154,7 @@ private:
     bool loading_ = false;
     Job job_;
     std::map<std::string, std::shared_ptr<const ModelResult>> results_;
+    std::map<std::string, RetainedModel> retainedModels_;
     std::string lastModel_;
     json complexity_;  // null until an experiment finished
     std::thread worker_;

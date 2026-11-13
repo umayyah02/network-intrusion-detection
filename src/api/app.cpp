@@ -223,6 +223,9 @@ json modelJson(const ModelResult& r) {
     const evalutil::Metrics& m = r.metrics;
     json j = json::object();
     j["model"] = r.model;
+    j["trainedOn"] = r.trainedOn;
+    j["evaluatedOn"] = r.evaluatedOn;
+    j["mode"] = r.mode;
     j["params"] = r.params;
     j["info"] = r.info;
     j["trainRows"] = r.trainRows;
@@ -636,7 +639,8 @@ json App::startDetect(const json& body) {
     if (loading_) throw ApiError(409, "DATASET_LOADING", "A dataset is being loaded.");
     const int id = beginJobLocked("detect", spec.name);
     std::shared_ptr<const PreparedData> data = data_;
-    worker_ = std::thread([this, id, spec, data] { runDetect(id, spec, data); });
+    const std::string dsName = datasetName_;
+    worker_ = std::thread([this, id, spec, data, dsName] { runDetect(id, spec, data, dsName); });
 
     json j = json::object();
     j["jobId"] = id;
@@ -647,12 +651,41 @@ json App::startDetect(const json& body) {
     return j;
 }
 
-void App::runDetect(int jobId, const ModelSpec& spec, std::shared_ptr<const PreparedData> data) {
+void App::runDetect(int jobId, const ModelSpec& spec, std::shared_ptr<const PreparedData> data,
+                    std::string datasetName) {
     try {
         update(jobId, "training", 0.02);
-        const RunOut run =
-            runSpec(spec, data->train, data->test,
-                    [&](double f) { update(jobId, "predicting", 0.05 + 0.9 * f); });
+        std::shared_ptr<KNN> fittedKnn;
+        std::shared_ptr<DecisionTree> fittedTree;
+
+        RunOut run;
+        if (spec.name == kKnn) {
+            fittedKnn = std::make_shared<KNN>(spec.knn);
+            run = fitPredict(*fittedKnn, data->train, data->test,
+                             [&](double f) { update(jobId, "predicting", 0.05 + 0.9 * f); });
+            run.info["storedTrainingRows"] = data->train.X.size();
+        } else {
+            fittedTree = std::make_shared<DecisionTree>(spec.tree);
+            run = fitPredict(*fittedTree, data->train, data->test,
+                             [&](double f) { update(jobId, "predicting", 0.05 + 0.9 * f); });
+            run.info["depth"] = fittedTree->depth();
+            run.info["nodes"] = fittedTree->nodeCount();
+            run.info["leaves"] = fittedTree->leafCount();
+            const std::vector<double> imp = fittedTree->featureImportance();
+            std::vector<size_t> order(imp.size());
+            for (size_t i = 0; i < order.size(); ++i) order[i] = i;
+            std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) { return imp[a] > imp[b]; });
+            json top = json::array();
+            for (size_t i : order) {
+                if (imp[i] <= 0 || top.size() >= 10) break;
+                json f = json::object();
+                f["name"] = i < data->train.featureNames.size() ? data->train.featureNames[i] : "feature" + std::to_string(i);
+                f["importance"] = r6(imp[i]);
+                top.push_back(f);
+            }
+            run.info["featureImportance"] = top;
+        }
+
         update(jobId, "evaluating", 0.96);
 
         auto res = std::make_shared<ModelResult>();
@@ -665,6 +698,10 @@ void App::runDetect(int jobId, const ModelSpec& spec, std::shared_ptr<const Prep
         res->trainMs = run.trainMs;
         res->predictMs = run.predictMs;
         res->metrics = evalutil::evaluate(data->test.y, run.pred, res->classNames.size());
+        res->trainedOn = datasetName;
+        res->evaluatedOn = datasetName + " (test split)";
+        res->mode = "train_eval";
+
         for (size_t i = 0; i < run.pred.size(); ++i) {
             Detection d;
             d.id = i;
@@ -683,6 +720,153 @@ void App::runDetect(int jobId, const ModelSpec& spec, std::shared_ptr<const Prep
             if (job_.id == jobId) {
                 results_[spec.name] = res;
                 lastModel_ = spec.name;
+
+                RetainedModel rm;
+                rm.model = spec.name;
+                rm.trainedOnDataset = datasetName;
+                rm.trainedAt = res->finishedAt;
+                rm.spec = spec;
+                rm.prepData = data;
+                rm.knn = fittedKnn;
+                rm.tree = fittedTree;
+                rm.trainResult = res;
+                retainedModels_[spec.name] = rm;
+            }
+        }
+        finish(jobId, "done", "");
+    } catch (const std::exception& e) {
+        finish(jobId, "failed", e.what());
+    }
+}
+
+json App::models() {
+    std::lock_guard<std::mutex> l(m_);
+    json out = json::object();
+    json list = json::array();
+    for (const auto& kv : retainedModels_) {
+        const RetainedModel& rm = kv.second;
+        json m = json::object();
+        m["name"] = rm.model;
+        m["status"] = "trained";
+        m["trainedOn"] = rm.trainedOnDataset;
+        m["trainedAt"] = rm.trainedAt;
+        m["params"] = rm.spec.params;
+        m["features"] = rm.prepData ? rm.prepData->train.featureNames.size() : 0;
+        m["trainRows"] = rm.prepData ? rm.prepData->train.X.size() : 0;
+        if (rm.trainResult) {
+            m["testAccuracy"] = r6(rm.trainResult->metrics.accuracy);
+            m["testMacroF1"] = r6(rm.trainResult->metrics.macroF1);
+        }
+        list.push_back(m);
+    }
+    out["models"] = list;
+    return out;
+}
+
+json App::startPredict(const std::string& model, const std::string& relPath) {
+    if (relPath.empty()) bad("A file path or upload is required for prediction");
+
+    RetainedModel rm;
+    std::string m = model;
+    {
+        std::lock_guard<std::mutex> l(m_);
+        if (m.empty()) m = lastModel_;
+        if (m.empty() && !retainedModels_.empty()) m = retainedModels_.begin()->first;
+        if (m.empty() || retainedModels_.find(m) == retainedModels_.end()) {
+            throw ApiError(409, "NO_MODEL",
+                           "No trained model available for inference. Train a model first using Train & Evaluate (POST /api/detect).");
+        }
+        rm = retainedModels_.at(m);
+        const int id = beginJobLocked("predict", m);
+        worker_ = std::thread([this, id, m, relPath, rm] { runPredict(id, m, relPath, rm); });
+
+        json j = json::object();
+        j["jobId"] = id;
+        j["type"] = "predict";
+        j["state"] = "running";
+        j["model"] = m;
+        j["dataset"] = relPath;
+        j["trainedOn"] = rm.trainedOnDataset;
+        return j;
+    }
+}
+
+void App::runPredict(int jobId, const std::string& modelName, const std::string& relPath,
+                     RetainedModel retained) {
+    try {
+        update(jobId, "preparing dataset with trained preprocessor", 0.05);
+        const fs::path full = resolve(relPath);
+        CleanReport cleanRep;
+        // Consistent preprocessing: uses the EXACT encoder, feature selector, and scaler fitted on the training data!
+        // No refitting, no rescaling, no label remap, no 80/20 split!
+        Dataset ds = prepareLike(*(retained.prepData), full.string(), &cleanRep);
+        if (ds.X.empty()) {
+            throw std::runtime_error("Evaluation dataset '" + relPath + "' has no usable rows.");
+        }
+
+        const size_t n = ds.X.size();
+        RunOut run;
+        run.pred.reserve(n);
+        run.conf.reserve(n);
+        const size_t step = std::max<size_t>(1, n / 100);
+
+        auto t0 = std::chrono::steady_clock::now();
+        if (modelName == kKnn) {
+            update(jobId, "predicting with KNN", 0.15);
+            for (size_t i = 0; i < n; ++i) {
+                const Prediction p = retained.knn->predictWithConfidence(ds.X[i]);
+                run.pred.push_back(p.label);
+                run.conf.push_back(p.confidence);
+                if (i % step == 0) update(jobId, "predicting with KNN", 0.15 + 0.8 * (static_cast<double>(i) / n));
+            }
+        } else {
+            update(jobId, "predicting with Decision Tree", 0.15);
+            for (size_t i = 0; i < n; ++i) {
+                const Prediction p = retained.tree->predictWithConfidence(ds.X[i]);
+                run.pred.push_back(p.label);
+                run.conf.push_back(p.confidence);
+                if (i % step == 0) update(jobId, "predicting with Decision Tree", 0.15 + 0.8 * (static_cast<double>(i) / n));
+            }
+        }
+        run.predictMs = msSince(t0);
+        update(jobId, "evaluating metrics", 0.96);
+
+        auto res = std::make_shared<ModelResult>();
+        res->model = modelName;
+        res->params = retained.spec.params;
+        res->info = retained.trainResult ? retained.trainResult->info : json::object();
+        res->classNames = retained.prepData->train.classNames;
+        res->trainRows = retained.prepData->train.X.size();
+        res->testRows = ds.X.size();
+        res->trainMs = 0.0;  // Inference only: no retraining!
+        res->predictMs = run.predictMs;
+        res->trainedOn = retained.trainedOnDataset;
+        res->evaluatedOn = fs::path(relPath).filename().string();
+        res->mode = "predict";
+
+        if (ds.y.size() == ds.X.size()) {
+            res->metrics = evalutil::evaluate(ds.y, run.pred, res->classNames.size());
+        }
+
+        for (size_t i = 0; i < run.pred.size(); ++i) {
+            Detection d;
+            d.id = i;
+            d.predicted = run.pred[i];
+            d.actual = ds.y.empty() ? 0 : ds.y[i];
+            d.confidence = run.conf[i];
+            if (d.predicted != 0) {  // class 0 = BENIGN
+                ++res->threatCount;
+                if (severityEnabled_) d.severity = severityFor(res->classNames[d.predicted], d.confidence);
+            }
+            res->rows.push_back(d);
+        }
+        res->finishedAt = nowIso();
+
+        {
+            std::lock_guard<std::mutex> l(m_);
+            if (job_.id == jobId) {
+                results_[modelName] = res;
+                lastModel_ = modelName;
             }
         }
         finish(jobId, "done", "");
@@ -840,7 +1024,15 @@ json App::metrics() {
     }
     j["available"] = available;
     j["models"] = models;
-    if (data_) {
+    if (!results_.empty()) {
+        auto first = results_.begin()->second;
+        j["datasetName"] = first->evaluatedOn.empty() ? datasetName_ : first->evaluatedOn;
+        j["trainedOn"] = first->trainedOn;
+        j["evaluatedOn"] = first->evaluatedOn;
+        j["mode"] = first->mode;
+        j["classNames"] = first->classNames;
+        j["testRows"] = first->testRows;
+    } else if (data_) {
         j["datasetName"] = datasetName_;
         j["classNames"] = data_->train.classNames;
         j["testRows"] = data_->test.X.size();
@@ -860,8 +1052,11 @@ json App::summary(const std::string& model) {
     for (const Detection& d : r->rows) ++counts[d.predicted];
     json j = json::object();
     j["model"] = r->model;
-    j["datasetName"] = name;
-    j["scope"] = "predictions on the test split";
+    j["datasetName"] = r->evaluatedOn.empty() ? name : r->evaluatedOn;
+    j["trainedOn"] = r->trainedOn;
+    j["evaluatedOn"] = r->evaluatedOn;
+    j["mode"] = r->mode;
+    j["scope"] = r->mode == "predict" ? "predictions on external evaluation dataset" : "predictions on the test split";
     j["total"] = r->testRows;
     j["normal"] = r->testRows - r->threatCount;
     j["malicious"] = r->threatCount;
@@ -888,7 +1083,10 @@ json App::dashboard(const std::string& model) {
     }
     json j = json::object();
     j["model"] = r->model;
-    j["datasetName"] = name;
+    j["datasetName"] = r->evaluatedOn.empty() ? name : r->evaluatedOn;
+    j["trainedOn"] = r->trainedOn;
+    j["evaluatedOn"] = r->evaluatedOn;
+    j["mode"] = r->mode;
     j["finishedAt"] = r->finishedAt;
     j["totals"] = modelJson(*r)["totals"];
     j["accuracy"] = r6(r->metrics.accuracy);
@@ -1014,6 +1212,10 @@ json App::listRows(const std::map<std::string, std::string>& q, bool threatsOnly
 
     json j = json::object();
     j["model"] = r->model;
+    j["datasetName"] = r->evaluatedOn.empty() ? datasetName_ : r->evaluatedOn;
+    j["trainedOn"] = r->trainedOn;
+    j["evaluatedOn"] = r->evaluatedOn;
+    j["mode"] = r->mode;
     j["filter"] = filter;
     j["total"] = total;
     j["totalAll"] = threatsOnly ? r->threatCount : r->rows.size();
