@@ -38,7 +38,7 @@ http://127.0.0.1:8080
 If your C++ backend uses a different address or port, create a file named `.env.local` inside the `gui` directory:
 
 ```env
-VITE_API_BASE_URL=http://127.0.0.1:8081
+VITE_API_BASE_URL=http://127.0.0.1:8080
 ```
 
 Replace the URL with your actual backend address.

@@ -15,7 +15,7 @@ A machine-learning-based Network Intrusion Detection System that analyzes networ
 | Dataset | CSV network traffic dataset |
 | Build System | CMake (planned) |
 | Version Control | Git, GitHub |
-| Frontend–Backend Communication | To be finalized |
+| Frontend–Backend Communication | HTTP REST API |
 
 ---
 
@@ -42,23 +42,11 @@ Opens at `http://localhost:5173`.
 
 ### 3. Backend setup
 
-Requires a C++17-compatible compiler. CMake is planned as the build system.
+The backend is implemented in C++17. Its source files are located in `src/`, with header files in `include/`.
 
-Check your compiler:
+The backend build and run commands must be confirmed by the backend developer. The project currently has no `CMakeLists.txt`.
 
-```bash
-g++ --version
-```
-
-Once the backend build configuration is added:
-
-```bash
-cd backend
-cmake -S . -B build
-cmake --build build
-```
-
-**Note:** These backend commands require a valid `CMakeLists.txt` and the agreed dependencies to be in place. The team must document the final run command and any required libraries before backend setup is considered complete.
+The API runs at `http://127.0.0.1:8080` by default.
 
 ---
 

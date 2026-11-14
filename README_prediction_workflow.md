@@ -72,7 +72,7 @@ Reported API and CLI results: **97.60% accuracy (487/499)** for both KNN (`p=2`,
 
 ## Build
 
-From the repository root on Windows with MinGW available:
+The backend command requires a compatible C++17 compiler; verify compiler support before building. From the repository root on Windows with MinGW available:
 
 ```powershell
 g++ -O2 -std=c++17 -Iinclude -Ithird_party src/api/server.cpp src/api/app.cpp src/ml/decision_tree.cpp src/ml/knn.cpp src/data/preprocessor.cpp src/data/dataset.cpp src/data/cleaner.cpp src/data/csv_loader.cpp -lws2_32 -o inids_server.exe
