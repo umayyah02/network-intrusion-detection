@@ -1,4 +1,4 @@
-# Testing Guide (DRAFT)
+# Testing Guide
 
 Owner: Member 4 (Integration and Testing).
 
@@ -188,7 +188,19 @@ Memory usage was not returned by the backend (`memoryBytes: null`) and is theref
 - `complexity_growth_ratios_A3.csv` — execution-time growth-ratio analysis
 - `plot_complexity.py` — graph-generation and analysis script
 
-## 5. Definition of done
+## 5. QA Status
+
+- Four automated test suites passed.
+- API smoke tests: 50/50 passed on the tested project snapshot.
+- Frontend production build succeeded; a large-bundle warning remains.
+- Dashboard, detection, threats, results and complexity workflows were tested.
+- Refreshing some pages redirects to the dashboard; reported for frontend review.
+- Detection results disappearing after refresh were reported for frontend review.
+- Severity display needs final runtime verification.
+- Replay, model save/load and JSON export are not implemented.
+- Backend memory usage is unavailable (`memoryBytes: null`).
+
+## 6. Definition of done
 
 - Every test builds and passes with the commands in this file, on a fresh clone.
 - Every item in section 3 was tried and the result is written down.

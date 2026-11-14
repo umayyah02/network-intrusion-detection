@@ -18,7 +18,7 @@ Built by tools/make_sample.cpp (reservoir sampling, fixed seed, fixed rows per c
 | A2 | data/sample_A2.csv | Training | BENIGN 1500, DoS 600 (Hulk, GoldenEye, DDoS), PortScan 450, BruteForce 450 (FTP-Patator, web brute force). Held out: slowloris, Slowhttptest, SSH-Patator. |
 | V | data/sample_V.csv | Test only: held-out variants | BENIGN 600, DoS 300 (slowloris, Slowhttptest), PortScan 150, BruteForce 300 (SSH-Patator). |
 | B | data/sample_B.csv | Consistency check only, not held out: DDoS and web brute force are in A2 training, and B rows are near-copies of A2 rows, so B is not evidence of generalization | BENIGN 200, DoS 100, PortScan 100, BruteForce 100. |
-| C | data/sample_C.csv | Test only: realistic mix (84% benign) | BENIGN 8424, DoS 936, PortScan 589, BruteForce 51. About 10,000 rows. |
+| C | data/sample_C.csv | Test only: realistic mix (84% benign) | 10,000 rows requested: BENIGN 8,424, DoS 936, PortScan 589, BruteForce 51. After cleaning: 9,914 usable rows, including 8,360 BENIGN. |
 | A3 | data/sample_A3.csv | Final training sample for the demo model: every variant of the three families | BENIGN 2000, DoS 1000 (Hulk, GoldenEye, slowloris, Slowhttptest, DDoS, 200 each), PortScan 500, BruteForce 600 (FTP-Patator, SSH-Patator, web brute force, 200 each). 4,100 rows requested. Since all variants are in training, V and B no longer test a model trained on A3. |
 
 The exclude lists keep A2 free of rows from A, B and C; V free of rows from A, B, C and A2; and A3 free of rows from A, B, C and V. A3 can share rows with A2, because both are drawn from the same data. Exclusion catches exact copies only; near-identical rows between samples (for example A2 and B/C) are still possible.

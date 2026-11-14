@@ -62,7 +62,7 @@ Both classifiers are written from scratch in C++ (no external ML libraries). The
 | File | Content |
 |---|---|
 | `data/sample_A3.csv` | **Final training sample** (4,100 rows): BENIGN 2,000; PortScan 500; DoS 1,000 (Hulk, GoldenEye, slowloris, Slowhttptest, DDoS, 200 each); BruteForce 600 (FTP-Patator, SSH-Patator, web brute force, 200 each). After cleaning, 3,263 training and 816 test rows (80/20, seed 42). Shares no rows with A, B, C or V |
-| `data/sample_C.csv` | Realistic mix, mostly benign. 10,000 rows requested; 9,914 usable after cleaning, including 8,360 benign. Used for false alarms and alert precision. 
+| `data/sample_C.csv` | Realistic mix, mostly benign. 10,000 rows requested; 9,914 usable after cleaning, including 8,360 benign. Used for false alarms and alert precision |
 | `data/sample_A2.csv` | Earlier training sample used for the generalization study (2,997 usable rows: 1,498 benign, 600 DoS, 449 PortScan, 450 BruteForce), split 80/20 with seed 42 |
 | `data/sample_V.csv` | Attack variants held out of A2 training: slowloris, Slowhttptest, SSH-Patator, PortScan, benign (1,304 rows). **No longer a test of the final model**, because its variants are in A3 |
 | `data/sample_B.csv` | New rows of attack types that are in training (499 rows). Near-copies of A2 rows, so **not** evidence of generalization |

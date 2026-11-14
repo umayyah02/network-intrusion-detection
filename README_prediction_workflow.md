@@ -72,6 +72,7 @@ Result: **97.60% accuracy (487/499)** for both KNN and Decision Tree, from both 
 
 ## Build
 
+The backend command requires a compatible C++17 compiler; verify compiler support before building. From the repository root on Windows with MinGW available:
 Requires a C++17 compiler. From the repository root on Windows with MinGW:
 
 ```powershell
