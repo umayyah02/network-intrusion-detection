@@ -9,99 +9,162 @@ import {
   ResponsiveContainer,
   ComposedChart,
 } from 'recharts'
+import { throwApiError } from '../api/ApiError'
 import { apiFetch } from '../api/client'
 import { endpoints } from '../api/endpoints'
-import { MetricCard } from '../components/MetricCard'
+import { EmptyState, ErrorCard, ErrorState } from '../components/charts/PanelStates'
 import { PageHeading } from '../components/PageHeading'
-import type { ComplexityModel, ComplexityMetric, ComplexityResponse } from '../types/api'
+import { Button, GlassPanel, Skeleton, cx } from '../components/ui'
+import { describeError } from '../lib/describeError'
+import type { ComplexityMetric, ComplexityModel, ComplexityResponse } from '../types/api'
+
+const POLL_MS = 3000
+
+function Toggle<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (value: T) => void
+}) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={cx(
+            'min-h-11 rounded-xl border px-4 text-sm font-medium transition',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            value === option.value
+              ? 'border-transparent bg-accent text-accent-fg shadow-glow'
+              : 'border-line-strong text-muted hover:bg-accent-soft hover:text-fg',
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Tile({ title, value, note }: { title: string; value: string; note: string }) {
+  return (
+    <GlassPanel>
+      <p className="text-sm text-muted">{title}</p>
+      <p className="mt-3 font-mono text-2xl font-semibold">{value}</p>
+      <p className="mt-3 text-xs text-muted">{note}</p>
+    </GlassPanel>
+  )
+}
+
+function ComplexitySkeleton() {
+  return (
+    <div role="status" aria-busy="true" className="space-y-4">
+      <span className="sr-only">Loading complexity results...</span>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => (
+          <GlassPanel key={item} className="space-y-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-8 w-32" />
+          </GlassPanel>
+        ))}
+      </div>
+      <GlassPanel>
+        <Skeleton className="h-80 w-full" />
+      </GlassPanel>
+    </div>
+  )
+}
 
 export function ComplexityPage() {
-  const [selectedModel, setSelectedModel] =
-    useState<ComplexityModel>('decision_tree')
+  const [selectedModel, setSelectedModel] = useState<ComplexityModel>('decision_tree')
   const [metric, setMetric] = useState<ComplexityMetric>('predictMs')
   const [data, setData] = useState<ComplexityResponse | null>(null)
   const [loading, setLoading] = useState(true)
-  const [running, setRunning] = useState(false)
-  const [error, setError] = useState('')
-
-  async function loadComplexity() {
-    const response = await apiFetch(endpoints.complexity)
-
-    if (!response.ok) {
-      throw new Error(`Complexity API error: ${response.status}`)
-    }
-
-    const result: ComplexityResponse = await response.json()
-    setData(result)
-    return result
-  }
+  const [error, setError] = useState<unknown>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [starting, setStarting] = useState(false)
+  const [waiting, setWaiting] = useState(false)
+  const [runError, setRunError] = useState<unknown>(null)
 
   useEffect(() => {
-    let active = true
+    const controller = new AbortController()
 
     async function load() {
       try {
-        const response = await apiFetch(endpoints.complexity)
-
-        if (!response.ok) {
-          throw new Error(`Complexity API error: ${response.status}`)
-        }
-
+        setLoading(true)
+        setError(null)
+        const response = await apiFetch(endpoints.complexity, { signal: controller.signal })
+        if (!response.ok) await throwApiError(response, 'Complexity')
         const result: ComplexityResponse = await response.json()
-        if (active) setData(result)
+        if (!controller.signal.aborted) setData(result)
       } catch (err) {
-        if (active) {
-          setError(err instanceof Error ? err.message : 'Failed to load benchmarks')
-        }
+        if (!controller.signal.aborted) setError(err)
       } finally {
-        if (active) setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     }
 
     load()
-    return () => { active = false }
-  }, [])
+    return () => controller.abort()
+  }, [reloadKey])
+
+  // After a benchmark is started, check for results every few seconds until it is ready.
+  useEffect(() => {
+    if (!waiting) return
+    const controller = new AbortController()
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await apiFetch(endpoints.complexity, { signal: controller.signal })
+        if (!response.ok) await throwApiError(response, 'Complexity')
+        const result: ComplexityResponse = await response.json()
+        if (result.ready) {
+          setData(result)
+          setWaiting(false)
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setWaiting(false)
+          setError(err)
+        }
+      }
+    }, POLL_MS)
+
+    return () => {
+      clearInterval(interval)
+      controller.abort()
+    }
+  }, [waiting])
 
   async function runBenchmarks() {
-    if (running) return
+    if (starting || waiting) return
 
-    setRunning(true)
-    setError('')
-
-    try {
-      const response = await apiFetch(
-        endpoints.complexityRun,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        }
-      )
-
-      if (!response.ok) {
-        throw new Error(`Benchmark start failed: ${response.status}`)
-      }
-
-      setData((previous) =>
-        previous ? { ...previous, ready: false, runs: [] } : null
-      )
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start benchmark')
-    } finally {
-      setRunning(false)
-    }
-  }
-
-  async function refreshBenchmarks() {
-    setLoading(true)
-    setError('')
+    setStarting(true)
+    setRunError(null)
 
     try {
-      await loadComplexity()
+      const response = await apiFetch(endpoints.complexityRun, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+
+      if (!response.ok) await throwApiError(response, 'Benchmark')
+
+      setData((previous) => (previous ? { ...previous, ready: false, runs: [] } : null))
+      setWaiting(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh benchmarks')
+      setRunError(err)
     } finally {
-      setLoading(false)
+      setStarting(false)
     }
   }
 
@@ -110,24 +173,30 @@ export function ComplexityPage() {
     .filter((item) => item.model === selectedModel)
     .sort((a, b) => a.trainRows - b.trainRows)
 
-  const fullRun = selectedRuns.length > 0
-    ? selectedRuns[selectedRuns.length - 1]
-    : undefined
+  const fullRun = selectedRuns.length > 0 ? selectedRuns[selectedRuns.length - 1] : undefined
 
   const chartData = Array.from(new Set(runs.map((item) => item.trainRows)))
     .sort((a, b) => a - b)
     .map((records) => ({
       records,
-      tree: runs.find(
-        (item) => item.model === 'decision_tree' && item.trainRows === records
-      )?.[metric] ?? null,
-      knn: runs.find(
-        (item) => item.model === 'knn' && item.trainRows === records
-      )?.[metric] ?? null
+      tree:
+        runs.find((item) => item.model === 'decision_tree' && item.trainRows === records)?.[
+          metric
+        ] ?? null,
+      knn:
+        runs.find((item) => item.model === 'knn' && item.trainRows === records)?.[metric] ??
+        null,
     }))
 
   const theory = data?.theory[selectedModel]
   const modelName = selectedModel === 'decision_tree' ? 'Decision Tree' : 'KNN'
+
+  const runView = runError ? describeError(runError, 'the benchmark') : null
+  const runMessage = runView
+    ? runView.kind === 'error'
+      ? runView.body
+      : `${runView.title}. ${runView.body}`
+    : ''
 
   return (
     <div className="space-y-6">
@@ -137,83 +206,103 @@ export function ComplexityPage() {
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={refreshBenchmarks}
+        <Button
+          variant="ghost"
+          onClick={() => setReloadKey((key) => key + 1)}
           disabled={loading}
-          className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-white disabled:opacity-50"
         >
           {loading ? 'Loading...' : 'Refresh benchmarks'}
-        </button>
-
-        <button
+        </Button>
+        <Button
           onClick={runBenchmarks}
-          disabled={running || loading}
-          className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50"
+          loading={starting || waiting}
+          disabled={loading}
         >
-          {running ? 'Starting...' : 'Run new benchmark'}
-        </button>
+          {starting ? 'Starting...' : waiting ? 'Running...' : 'Run new benchmark'}
+        </Button>
       </div>
 
-      {error && <p className="text-red-400">{error}</p>}
-
-      {loading && <p className="text-cyan-300">Loading complexity results...</p>}
-
-      {!loading && data && !data.ready && (
-        <p className="rounded-xl border border-amber-500/30 p-5 text-amber-300">
-          Benchmarks are not ready yet. If a benchmark job is running,
-          wait for completion and click Refresh benchmarks.
-        </p>
+      {runView && (
+        <ErrorCard
+          title="Could not start the benchmark"
+          message={runMessage}
+          onRetry={runBenchmarks}
+        />
       )}
 
-      {data && (
-        <p className="text-sm text-slate-400">
+      {waiting && (
+        <GlassPanel role="status">
+          <p className="font-semibold">Benchmark running</p>
+          <p className="mt-1 text-sm text-muted">
+            Results appear here when it finishes. Checking every {POLL_MS / 1000} seconds.
+          </p>
+        </GlassPanel>
+      )}
+
+      {loading && <ComplexitySkeleton />}
+
+      {!loading && error != null && (
+        <ErrorState
+          error={error}
+          what="benchmarks"
+          onRetry={() => setReloadKey((key) => key + 1)}
+        />
+      )}
+
+      {!loading && error == null && !data && !waiting && (
+        <EmptyState
+          title="No benchmark results"
+          body="Run a new benchmark to measure training and prediction times."
+          cta={false}
+        />
+      )}
+
+      {!loading && error == null && data && !data.ready && !waiting && (
+        <GlassPanel className="border-sev-medium/30">
+          <p className="text-sev-medium-fg">
+            Benchmarks are not ready yet. If a benchmark job is running, wait for completion
+            and click Refresh benchmarks.
+          </p>
+        </GlassPanel>
+      )}
+
+      {!loading && error == null && data && (
+        <p className="text-sm text-muted">
           Dataset: {data.datasetName ?? 'Not available'}
           {' · '}Repeats: {data.repeats ?? 'N/A'}
           {' · '}Measured on the backend server
         </p>
       )}
 
-      {data?.ready && (
+      {!loading && error == null && data?.ready && (
         <>
-          <div className="flex flex-wrap gap-3">
-            {(['decision_tree', 'knn'] as ComplexityModel[]).map((model) => (
-              <button
-                key={model}
-                onClick={() => setSelectedModel(model)}
-                className={`rounded-xl px-5 py-3 text-sm font-medium ${
-                  selectedModel === model
-                    ? 'bg-cyan-400 text-slate-950'
-                    : 'border border-slate-700 bg-slate-900 text-slate-300'
-                }`}
-              >
-                {model === 'decision_tree' ? 'Decision Tree' : 'KNN'}
-              </button>
-            ))}
-          </div>
+          <Toggle<ComplexityModel>
+            label="Model"
+            value={selectedModel}
+            onChange={setSelectedModel}
+            options={[
+              { value: 'decision_tree', label: 'Decision Tree' },
+              { value: 'knn', label: 'KNN' },
+            ]}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
+            <Tile
               title="Training time"
               value={fullRun ? `${fullRun.trainMs.toFixed(3)} ms` : 'N/A'}
               note={`${modelName} · largest measured training size`}
-              icon="◷"
-              color="bg-cyan-500/10 text-cyan-300"
             />
-            <MetricCard
+            <Tile
               title="Prediction time"
               value={fullRun ? `${fullRun.predictMs.toFixed(3)} ms` : 'N/A'}
               note={`${fullRun?.testRows ?? 0} test records`}
-              icon="⚡"
-              color="bg-violet-500/10 text-violet-300"
             />
-            <MetricCard
+            <Tile
               title="Training records"
               value={fullRun ? fullRun.trainRows.toLocaleString() : 'N/A'}
               note="Largest measured training subset"
-              icon="▤"
-              color="bg-emerald-500/10 text-emerald-300"
             />
-            <MetricCard
+            <Tile
               title="Memory usage"
               value={
                 fullRun?.memoryBytes == null
@@ -221,75 +310,59 @@ export function ComplexityPage() {
                   : `${(fullRun.memoryBytes / 1048576).toFixed(2)} MB`
               }
               note="Not measured when unavailable"
-              icon="▦"
-              color="bg-amber-500/10 text-amber-300"
             />
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h3 className="font-semibold text-white">Scalability comparison</h3>
-            <p className="mt-2 text-sm text-slate-400">
+          <GlassPanel>
+            <h3 className="font-semibold">Scalability comparison</h3>
+            <p className="mt-2 text-sm text-muted">
               Actual server measurements across training dataset sizes.
             </p>
 
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={() => setMetric('predictMs')}
-                className={`rounded-lg px-4 py-2 text-sm ${
-                  metric === 'predictMs'
-                    ? 'bg-cyan-400 text-slate-950'
-                    : 'border border-slate-700 text-slate-300'
-                }`}
-              >
-                Prediction time
-              </button>
-              <button
-                onClick={() => setMetric('trainMs')}
-                className={`rounded-lg px-4 py-2 text-sm ${
-                  metric === 'trainMs'
-                    ? 'bg-cyan-400 text-slate-950'
-                    : 'border border-slate-700 text-slate-300'
-                }`}
-              >
-                Training time
-              </button>
+            <div className="mt-4">
+              <Toggle<ComplexityMetric>
+                label="Metric"
+                value={metric}
+                onChange={setMetric}
+                options={[
+                  { value: 'predictMs', label: 'Prediction time' },
+                  { value: 'trainMs', label: 'Training time' },
+                ]}
+              />
             </div>
 
             {chartData.length > 0 ? (
               <div className="mt-6 h-80 w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={chartData}>
-                    <CartesianGrid stroke="#203047" strokeDasharray="3 3" />
+                    <CartesianGrid stroke="#1b3a31" strokeDasharray="3 3" />
                     <XAxis
                       type="number"
                       dataKey="records"
                       domain={['dataMin', 'dataMax']}
-                      stroke="#7186a2"
+                      stroke="#8fb3a6"
                       tick={{ fontSize: 11 }}
                     />
-                    <YAxis
-                      stroke="#7186a2"
-                      tick={{ fontSize: 11 }}
-                      unit=" ms"
-                      width={75}
-                    />
+                    <YAxis stroke="#8fb3a6" tick={{ fontSize: 11 }} unit=" ms" width={75} />
                     <Tooltip
                       formatter={(value, name) => [
                         `${Number(value).toFixed(3)} ms`,
-                        String(name)
+                        String(name),
                       ]}
                       contentStyle={{
-                        backgroundColor: '#0c192b',
-                        border: '1px solid #28405a',
-                        borderRadius: 10
+                        backgroundColor: '#0a2019',
+                        border: '1px solid rgb(52 211 153 / 0.4)',
+                        borderRadius: 12,
+                        color: '#e6f5ef',
                       }}
+                      labelStyle={{ color: '#8fb3a6' }}
                     />
                     <Legend />
                     <Line
                       type="linear"
                       dataKey="tree"
                       name="Decision Tree"
-                      stroke="#06b6d4"
+                      stroke="#34d399"
                       strokeWidth={3}
                       dot={{ r: 4 }}
                       isAnimationActive={false}
@@ -298,8 +371,9 @@ export function ComplexityPage() {
                       type="linear"
                       dataKey="knn"
                       name="KNN"
-                      stroke="#a78bfa"
+                      stroke="#fbbf24"
                       strokeWidth={3}
+                      strokeDasharray="6 4"
                       dot={{ r: 4 }}
                       isAnimationActive={false}
                     />
@@ -307,40 +381,33 @@ export function ComplexityPage() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <p className="mt-5 text-slate-400">No benchmark points available.</p>
+              <p className="mt-5 text-muted">No benchmark points available.</p>
             )}
 
-            <p className="mt-3 text-xs text-slate-500">
-              X-axis: training records · Y-axis: measured wall-clock time (ms).
-              Each prediction run uses the full test split.
+            <p className="mt-3 text-xs text-muted">
+              X-axis: training records · Y-axis: measured wall-clock time (ms). Each prediction
+              run uses the full test split. Decision Tree is the solid green line, KNN the dashed
+              amber line.
             </p>
-          </div>
+          </GlassPanel>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-              <h3 className="font-semibold text-white">Time complexity</h3>
-              <p className="mt-3 text-sm text-slate-300">
-                Training: {theory?.train}
-              </p>
-              <p className="mt-3 text-sm text-slate-300">
-                Prediction: {theory?.predict}
-              </p>
-            </div>
+            <GlassPanel>
+              <h3 className="font-semibold">Time complexity</h3>
+              <p className="mt-3 text-sm">Training: {theory?.train}</p>
+              <p className="mt-3 text-sm">Prediction: {theory?.predict}</p>
+            </GlassPanel>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-              <h3 className="font-semibold text-white">Space complexity</h3>
-              <p className="mt-3 text-sm text-slate-300">
-                {theory?.storage}
-              </p>
-              <p className="mt-3 text-xs text-slate-500">
+            <GlassPanel>
+              <h3 className="font-semibold">Space complexity</h3>
+              <p className="mt-3 text-sm">{theory?.storage}</p>
+              <p className="mt-3 text-xs text-muted">
                 Theoretical storage complexity is not a measured RAM value.
               </p>
-            </div>
+            </GlassPanel>
           </div>
 
-          <p className="text-xs text-slate-500">
-            {data.notes}
-          </p>
+          <p className="text-xs text-muted">{data.notes}</p>
         </>
       )}
     </div>
