@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Activity, ShieldAlert, ShieldCheck, Target } from 'lucide-react'
 import { apiFetch } from '../api/client'
+import { throwApiError } from '../api/ApiError'
 import { endpoints } from '../api/endpoints'
 import {
   AccuracyBars,
   BarTimeline,
   Donut,
   EmptyState,
-  ErrorCard,
+  ErrorState,
   Gauge,
   LatestThreatsTable,
   StatCard,
@@ -57,7 +58,7 @@ export function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
 
   const [dashboardLoading, setDashboardLoading] = useState(true)
-  const [dashboardError, setDashboardError] = useState('')
+  const [dashboardError, setDashboardError] = useState<unknown>(null)
   const [reload, setReload] = useState(0)
 
   const [detections, setDetections] = useState<DetectionResult[]>([])
@@ -69,7 +70,7 @@ export function Dashboard() {
     async function loadDashboard() {
       try {
         setDashboardLoading(true)
-        setDashboardError('')
+        setDashboardError(null)
 
         const response = await apiFetch(
           endpoints.dashboard,
@@ -77,7 +78,7 @@ export function Dashboard() {
         )
 
         if (!response.ok) {
-          throw new Error(`Dashboard API error: ${response.status}`)
+          await throwApiError(response, 'Dashboard')
         }
 
         const data = await response.json()
@@ -86,9 +87,7 @@ export function Dashboard() {
         }
       } catch (err) {
         if (!controller.signal.aborted) {
-          setDashboardError(
-            err instanceof Error ? err.message : 'Failed to load dashboard'
-          )
+          setDashboardError(err)
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -164,8 +163,8 @@ export function Dashboard() {
 
       {dashboardLoading && <DashboardSkeleton />}
 
-      {dashboardError && !dashboardLoading && (
-        <ErrorCard message={dashboardError} onRetry={() => setReload((n) => n + 1)} />
+      {!!dashboardError && !dashboardLoading && (
+        <ErrorState error={dashboardError} what="the dashboard" onRetry={() => setReload((n) => n + 1)} />
       )}
 
       {!dashboardLoading && !dashboardError && isEmpty && <EmptyState />}
