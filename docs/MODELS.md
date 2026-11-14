@@ -117,7 +117,7 @@ These results use the **A2** training sample and the A2 settings (KNN Manhattan 
 | | False alarms on benign | 2.2% (185 of 8,360) | 2.7% (224 of 8,360) |
 | | Detection rate (attack vs benign) | 95.8% | 95.9% |
 | | Alert precision | 88.9% | 86.9% |
-| V: unseen attack variants | Macro-F1 | 0.677 | 0.629 |
+| V: variants unseen by A2 | Macro-F1 | 0.677 | 0.629 |
 | | Slow DoS detected | 5.8% | 0.3% |
 | | SSH brute force detected | 83.8% | 75.7% |
 | Speed, 9,914 rows | Prediction time | ~506 ms | ~0.4 ms |
@@ -152,7 +152,7 @@ In each of these runs the model still scored 97-99% on its own test split, so sc
 ## 6. Findings
 
 - On traffic similar to the training data, both models perform very well and give several times fewer false alarms than the simple port and duration baselines.
-- KNN and the Decision Tree are close in accuracy. The Decision Tree is roughly 1,000 times faster (~0.3 ms vs ~689 ms on 9,914 rows) and can be interpreted as readable rules.
+- KNN and the Decision Tree are close in accuracy. The Decision Tree is over 2,000 times faster at prediction (~0.27 ms vs ~689 ms on 9,914 rows) and can be interpreted as readable rules.
 - **Models trained without a variant do not detect it reliably.** With A2, slow DoS (slowloris, Slowhttptest) looks like normal traffic and is almost completely missed, and leave-one-variant-out detection averages 31% to 39%. Training on all variants (A3) is the fix, but A3's test scores say nothing about attack types that are not in A3.
 - On C the final A3 models still raise about 2 to 3% false alarms. Because C is mostly benign, alert precision is about 88 to 89%.
 
