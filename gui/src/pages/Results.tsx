@@ -17,9 +17,14 @@ function getMacroMetric(
   report: EvaluationReport | undefined,
   metric: 'precision' | 'recall'
 ) {
-  if (!report || report.metrics.perClass.length === 0) return null
+  if (!report) return null
 
-  const values = report.metrics.perClass.map((item) => item[metric])
+  // Macro average over classes that actually occur in the test data (support > 0),
+  // so classes with no samples do not drag the average toward 0.
+  const present = report.metrics.perClass.filter((item) => item.support > 0)
+  if (present.length === 0) return null
+
+  const values = present.map((item) => item[metric])
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
@@ -140,6 +145,10 @@ function ModelCard({ model, report }: { model: EvaluationModel; report?: Evaluat
           </div>
         ))}
       </div>
+
+      <p className="mt-2 text-xs text-muted">
+        Precision and recall are macro averages over classes present in the test data.
+      </p>
 
       <ConfusionMatrix report={report} />
 
