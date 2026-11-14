@@ -68,18 +68,22 @@ Try each one. The program must give a clear error and must not crash.
 - [ ] Very large file
 - [ ] Unknown label in the label column
 
+
 ## 4. Speed and complexity experiments
 
 ### Experiment configuration
 
-- Dataset: `sample_A3.csv`
+- Dataset: `sample_A3.csv` (loaded as `uploads/sample_A3.csv`)
 - Total records: 4,079
 - Training records: 3,263
 - Test records: 816
+- Features: 20
+- Classes: 4
 - Models: Decision Tree and KNN
 - Training-data fractions: 10%, 25%, 50%, 100%
 - Repetitions: 3 per configuration
 - Random seed: 42
+- Experiment date: November 14, 2026
 
 ### Hardware
 
@@ -88,15 +92,15 @@ Try each one. The program must give a clear error and must not crash.
 
 ### Procedure
 
-1. Load the dataset and use the prepared training and test split.
+1. Load the A3 dataset and use the prepared training and test split.
 2. Train both models using 10%, 25%, 50%, and 100% of the training records.
 3. Use the same full test split (816 records) for every experiment.
 4. Repeat each configuration three times and record average training and prediction times.
-5. Save measurements in `complexity_results_A3.csv` using the format:
+5. Save the raw backend response in `complexity_A3_job5_2026-11-14.json`.
+6. Convert the average timings from milliseconds to seconds and save them in `complexity_results_A3.csv` using the format:
    `model,rows,trainSeconds,predictSeconds`.
-6. Generate training-time and prediction-time graphs using `plot_complexity.py`.
-7. Compare measured trends with theoretical algorithm complexity.
-
+7. Generate training-time and prediction-time graphs using `plot_complexity.py`.
+8. Compare measured trends with theoretical algorithm complexity.
 
 ### Results and observations
 
@@ -104,34 +108,56 @@ Average execution times across 3 repetitions:
 
 | Model | Training records | Training time (seconds) | Prediction time (seconds) |
 |---|---:|---:|---:|
-| Decision Tree | 327 | 0.002587 | 0.000111 |
-| Decision Tree | 817 | 0.005913 | 0.000045 |
-| Decision Tree | 1,632 | 0.011190 | 0.000039 |
-| Decision Tree | 3,263 | 0.033283 | 0.000057 |
-| KNN | 327 | 0.000034 | 0.005613 |
-| KNN | 817 | 0.000115 | 0.031201 |
-| KNN | 1,632 | 0.000166 | 0.047061 |
-| KNN | 3,263 | 0.000364 | 0.075309 |
+| Decision Tree | 327 | 0.003344 | 0.000055 |
+| Decision Tree | 817 | 0.006679 | 0.000059 |
+| Decision Tree | 1,632 | 0.013970 | 0.000057 |
+| Decision Tree | 3,263 | 0.038112 | 0.000065 |
+| KNN | 327 | 0.000060 | 0.015328 |
+| KNN | 817 | 0.000158 | 0.026983 |
+| KNN | 1,632 | 0.000235 | 0.054742 |
+| KNN | 3,263 | 0.000445 | 0.103408 |
 
 Observations:
 
 - Decision Tree training time increased as the training dataset grew.
-- Decision Tree prediction remained very fast, with small variations between measurements.
-- KNN training time remained comparatively low.
-- KNN prediction time increased substantially with training-data size.
-- These observations broadly align with the expected behaviour of both algorithms.
+- Decision Tree prediction time remained very low and relatively stable while the test set stayed fixed at 816 records.
+- KNN training time remained comparatively low because it mainly stores the training records.
+- KNN prediction time increased as the training dataset grew because predictions require comparisons with stored training records.
+- The observed trends broadly align with the expected behaviour of both algorithms.
+- The prediction-time graph uses a logarithmic Y-axis because the prediction times of the two models differ substantially.
 - All configurations used the same 816 test records.
+
+### Theoretical complexity
+
+Let `n` represent the number of training records, `f` the number of features, and `h` the height of the Decision Tree.
+
+| Model | Training complexity | Prediction complexity |
+|---|---|---|
+| Decision Tree | O(n f log n) | O(h) per record |
+| KNN | Stores training records | Approximately O(n f) per query on average in this implementation |
+
+The KNN implementation uses `nth_element` to select the nearest neighbours. Its prediction work therefore grows with the number of stored training records.
+
+These theoretical complexities describe expected algorithmic behaviour; the measured execution times are practical observations and do not prove asymptotic complexity.
 
 ### Memory measurement limitation
 
 Memory usage was not returned by the backend (`memoryBytes: null`) and is therefore reported as unavailable rather than estimated.
 
+### Limitations
+
+- Execution times are wall-clock measurements from the server machine and may vary across hardware and runs.
+- Results are based on one dataset and one machine.
+- Only average timings were returned; individual repetition timings and variation were not available.
+- Memory usage could not be measured because the backend returned `memoryBytes: null`.
+
 ### Evidence files
 
-- `complexity_results_A3.csv`
-- `complexity_training.png`
-- `complexity_prediction.png`
-- `plot_complexity.py`
+- `complexity_A3_job5_2026-11-14.json` — raw backend experiment response
+- `complexity_results_A3.csv` — recorded average measurements
+- `complexity_training.png` — training-time graph
+- `complexity_prediction.png` — prediction-time graph
+- `plot_complexity.py` — graph-generation script
 
 ## 5. Definition of done
 
