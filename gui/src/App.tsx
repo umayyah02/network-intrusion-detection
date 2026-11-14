@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { AppShell } from './components/layout/AppShell'
-import type { Page } from './lib/navigation'
+import { PageTransition } from './components/layout/PageTransition'
+import { useHashPage } from './hooks/useHashPage'
 import { ComplexityPage } from './pages/Complexity'
 import { Dashboard } from './pages/Dashboard'
 import { DatasetPage } from './pages/Dataset'
@@ -9,7 +9,7 @@ import { ResultsPage } from './pages/Results'
 import { ThreatsPage } from './pages/Threats'
 
 function App() {
-  const [activePage, setActivePage] = useState<Page>('Dashboard')
+  const [activePage, navigate] = useHashPage()
 
   function renderPage() {
     switch (activePage) {
@@ -29,8 +29,8 @@ function App() {
   }
 
   return (
-    <AppShell activePage={activePage} onNavigate={setActivePage}>
-      {renderPage()}
+    <AppShell activePage={activePage} onNavigate={navigate}>
+      <PageTransition pageKey={activePage}>{renderPage()}</PageTransition>
     </AppShell>
   )
 }

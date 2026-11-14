@@ -69,3 +69,13 @@
 @media (prefers-reduced-motion: reduce) {
   :root { --animate-shimmer: none; }
 }
+
+/* Console backdrop: near-black base, faint grid, soft emerald light */
+@utility bg-console {
+  background-color: var(--color-void);
+  background-image:
+    radial-gradient(900px 500px at 85% -10%, rgb(45 212 191 / 0.14), transparent 60%),
+    linear-gradient(rgb(52 211 153 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(52 211 153 / 0.04) 1px, transparent 1px);
+  background-size: auto, 40px 40px, 40px 40px;
+}
