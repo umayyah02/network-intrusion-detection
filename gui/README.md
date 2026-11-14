@@ -1,112 +1,75 @@
+# INIDS frontend
 
-# INIDS — Frontend Setup Guide
+React + TypeScript console for the INIDS intrusion detection backend (C++17, Decision Tree and KNN). It loads a dataset, trains or reuses a model, runs detection, and shows the results, threats, evaluation metrics and complexity benchmarks. The backend API is unchanged: this app only calls it over HTTP.
 
-INIDS (Intelligent Network Intrusion Detection System) uses React, TypeScript, Vite, Tailwind CSS and Recharts for its frontend.
+![Dashboard](docs/screenshots/02-dashboard.png)
 
-The frontend communicates with a separate C++ backend API.
+## Run it
 
-## Requirements
-
-- Node.js 20.19+ or 22.12+ (use a compatible Node.js release)
-- npm
-- Git (for cloning the repository)
-- C++ backend running for live dataset, detection and evaluation features
-
-## 1. Clone the Repository
+Start the backend first (see the repository README), then:
 
 ```bash
-git clone https://github.com/umayyah02/network-intrusion-detection.git
-cd network-intrusion-detection/gui
-```
-
-## 2. Install Dependencies
-
-```bash
-npm ci
-```
-
-This installs all required packages using `package-lock.json`, including Tailwind CSS and its Vite plugin.
-
-## 3. Configure the Backend URL (Optional)
-
-By default, the frontend connects to:
-
-```text
-http://127.0.0.1:8080
-```
-
-If your C++ backend uses a different address or port, create a file named `.env.local` inside the `gui` directory:
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8081
-```
-
-Replace the URL with your actual backend address.
-
-Restart the Vite development server after changing `.env.local`.
-
-Note: Port 8081 is only an example. The standard INIDS backend port is 8080.
-
-## 4. Run the Frontend
-
-```bash
+cd gui
+npm install
 npm run dev
 ```
 
-Open the local URL displayed by Vite, normally:
+Open the address Vite prints (usually http://localhost:5173/).
 
-http://localhost:5173/
+| Script | What it does |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript check |
+| `npm run build` | Typecheck and production build |
 
-For Windows PowerShell systems that block `npm.ps1`, use:
+The API address defaults to `http://127.0.0.1:8080`. Override it with `VITE_API_BASE_URL` in a `.env` file.
 
-```powershell
-npm.cmd run dev
+## Typical flow
+
+1. **Dataset:** load a dataset (for example `sample_A3.csv`).
+2. **Detection:** run **Train & Evaluate**, or evaluate a retained model on another file without retraining.
+3. **Dashboard, Threats, Results:** review the outcome.
+4. **Complexity:** run the benchmark and compare Decision Tree and KNN.
+
+If the backend is not running, every page shows an offline banner and a clear message with Retry.
+
+## Pages
+
+| Page | Screenshot |
+|---|---|
+| Dashboard: stat cards, attack types, detection rate, model accuracy, threat activity, latest threats | ![Dashboard](docs/screenshots/02-dashboard.png) |
+| Dataset: list, load, summary, CSV preview | ![Dataset](docs/screenshots/03-dataset.png) |
+| Detection: train or predict, progress, results | ![Detection](docs/screenshots/04-detection.png) |
+| Threats: search, filter, pages, details | ![Threats](docs/screenshots/05-threats.png) |
+| Results & Evaluation: metrics and confusion matrices | ![Results](docs/screenshots/07-results.png) |
+| Complexity: measured times and theory | ![Complexity](docs/screenshots/08-complexity.png) |
+
+### Mobile and offline
+
+| Mobile | Menu | Backend offline |
+|---|---|---|
+| ![Mobile dashboard](docs/screenshots/09-mobile-dashboard.png) | ![Mobile menu](docs/screenshots/10-mobile-menu.png) | ![Offline](docs/screenshots/11-offline.png) |
+
+## What the data is, and is not
+
+The backend provides no source IP or timestamp, so flows are identified by flow ID and nothing is invented. The activity charts group results by batch, in detection order, not by clock time. The globe is a decorative view of detections, not a map.
+
+## Code layout
+
+```
+src/
+  api/          client, endpoints, ApiError
+  components/   layout, ui (glass panel, pill, button, skeleton), charts, threat, intro
+  hooks/        useHealth, useHashPage
+  lib/          navigation, describeError
+  pages/        Dashboard, Dataset, Detection, Threats, Results, Complexity
+  styles/       theme.css (design tokens)
+  types/        api.ts
 ```
 
-## 5. Production Build
+The active page is kept in the URL hash (`#dashboard`, `#dataset`, `#detection`, `#threats`, `#results`, `#complexity`). Colors, glows and radii are Tailwind v4 theme tokens in `src/styles/theme.css`.
 
-```bash
-npm run build
-```
+## Accessibility and motion
 
-## 6. Backend Requirement
-
-The React frontend and C++ backend are separate processes.
-
-The backend must be compiled and started independently. The default backend address is:
-
-```text
-http://127.0.0.1:8080
-```
-
-To check whether the backend is reachable, visit:
-
-http://127.0.0.1:8080/api/health
-
-Start the backend with the appropriate data directory, dataset and port configuration. See the repository's backend documentation and API contract for build instructions.
-
-The frontend can open without the backend, but Dashboard metrics, Dataset Preview, Detection, Threats, Evaluation and Complexity Analysis require a working backend.
-
-## 7. Troubleshooting
-
-### Cannot find package '@tailwindcss/vite'
-
-Run `npm ci` inside `gui` and ensure the latest committed `package.json` and `package-lock.json` have been pulled.
-
-### Failed to fetch
-
-Check that the C++ backend is running, that `VITE_API_BASE_URL` points to the correct address, and that the backend permits requests from the frontend origin.
-
-### npm.ps1 cannot be loaded
-
-On Windows PowerShell, use `npm.cmd` instead of `npm`.
-
-### Vite port 5173 is unavailable
-
-Vite may choose another available port. Open the URL displayed in the terminal.
-
-## Important
-
-Do not commit `node_modules`, `dist`, or local `.env.local` files.
-
-Use a separate feature branch and pull request for changes to the shared project.
+Keyboard navigable with visible focus rings. Severity and status always carry a text label, not color alone. With `prefers-reduced-motion`, the boot sequence, globe rotation and count-up effects are turned off.
