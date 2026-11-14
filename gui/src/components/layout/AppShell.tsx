@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useHealth } from '../../hooks/useHealth'
 import type { Page } from '../../lib/navigation'
 import { Sidebar } from './Sidebar'
+import { OfflineBanner } from './OfflineBanner'
 import { Topbar } from './Topbar'
 
 export function AppShell({
@@ -47,6 +48,7 @@ export function AppShell({
           onOpenMenu={() => setSidebarOpen(true)}
         />
 
+        {status === 'offline' && <OfflineBanner />}
         <main className="mx-auto max-w-[1600px] p-4 sm:p-8">
           {children}
           <footer className="mt-10 border-t border-line py-5 text-center text-xs text-muted">
