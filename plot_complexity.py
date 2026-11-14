@@ -33,11 +33,11 @@ for model, name in models.items():
 
 plt.xlabel("Training Records")
 plt.ylabel("Training Time (seconds)")
-plt.title("Training Time vs Training Data Size")
+plt.title("Training Time vs Training Data Size\nA3 Dataset | Average of 3 Runs")
 plt.legend()
 plt.grid(True)
-plt.savefig("complexity_training.png")
-plt.show()
+plt.tight_layout()
+plt.savefig("complexity_training.png", dpi=300)
 plt.close()
 
 # Graph 2: Prediction time
@@ -53,12 +53,13 @@ for model, name in models.items():
     )
 
 plt.xlabel("Training Records")
-plt.ylabel("Prediction Time (seconds)")
-plt.title("Prediction Time vs Training Data Size")
+plt.ylabel("Prediction Time (seconds, log scale)")
+plt.title("Prediction Time vs Training Data Size\nA3 Dataset | Average of 3 Runs")
+plt.yscale("log")
 plt.legend()
-plt.grid(True)
-plt.savefig("complexity_prediction.png")
-plt.show()
+plt.grid(True, which="both")
+plt.tight_layout()
+plt.savefig("complexity_prediction.png", dpi=300)
 plt.close()
 
 print("Both complexity graphs generated successfully.")
