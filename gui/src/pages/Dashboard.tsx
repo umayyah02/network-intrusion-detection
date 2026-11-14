@@ -14,6 +14,7 @@ import {
   cumulative,
   toBatches,
 } from '../components/charts'
+import { ThreatGlobe } from '../components/threat/ThreatGlobe'
 import { GlassPanel, Skeleton } from '../components/ui'
 import type { DashboardData, DetectionResult, EvaluationResponse } from '../types/api'
 
@@ -231,7 +232,16 @@ export function Dashboard() {
             </GlassPanel>
           </div>
 
-          <GlassPanel>
+          <div className="grid gap-4 xl:grid-cols-3">
+            <GlassPanel>
+              <PanelTitle title="Network threat overview" note="Each node is a sampled flow" />
+              {detections.length > 0 ? (
+                <ThreatGlobe detections={detections} />
+              ) : (
+                <p className="text-sm text-muted">Detection details are not available.</p>
+              )}
+            </GlassPanel>
+          <GlassPanel className="xl:col-span-2">
             <PanelTitle title="Threat activity" note="Threats per detection batch (backend order, not clock time)" />
             {batches.length > 0 ? (
               <BarTimeline batches={batches} />
@@ -239,6 +249,8 @@ export function Dashboard() {
               <p className="text-sm text-muted">Detection details are not available.</p>
             )}
           </GlassPanel>
+
+          </div>
 
           <GlassPanel>
             <PanelTitle
