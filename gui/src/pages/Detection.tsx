@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api/client'
 import { endpoints } from '../api/endpoints'
+import { Cog, Zap, TriangleAlert } from 'lucide-react'
 import { PageHeading } from '../components/PageHeading'
+import { Button, GlassPanel, Pill, cx } from '../components/ui'
 import type { DetectionResult, RetainedModelInfo } from '../types/api'
 
 export function DetectionPage() {
@@ -245,233 +247,228 @@ export function DetectionPage() {
   }
 
   const selectedModelTrained = trainedModels.find((m) => m.name === selectedModel)
+  const modelLabel = (m: string) => (m === 'decision_tree' ? 'Decision Tree' : 'KNN')
+
+  const choice = (active: boolean) =>
+    cx(
+      'rounded-xl border px-5 py-3 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-accent',
+      active
+        ? 'border-accent bg-accent-soft text-accent shadow-glow'
+        : 'border-line text-muted hover:border-line-strong hover:text-fg',
+    )
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeading
         title="Intrusion detection & inference"
         description="Train classifiers on training datasets or evaluate existing trained models on unseen test traffic without retraining."
       />
 
-      {/* Workflow Tabs */}
-      <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-slate-800 bg-slate-900/70 p-2">
-        <button
-          onClick={() => setActiveWorkflow('train')}
-          className={`flex-1 rounded-xl px-5 py-3 text-sm font-semibold transition ${
-            activeWorkflow === 'train'
-              ? 'bg-cyan-500 text-slate-950 shadow-lg'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          ⚙ Mode 1: Train & Evaluate (80/20 Split)
-        </button>
-        <button
-          onClick={() => setActiveWorkflow('predict')}
-          className={`flex-1 rounded-xl px-5 py-3 text-sm font-semibold transition ${
-            activeWorkflow === 'predict'
-              ? 'bg-cyan-500 text-slate-950 shadow-lg'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          ⚡ Mode 2: Predict Using Existing Model (Zero Retraining)
-        </button>
-      </div>
+      {/* Workflow tabs */}
+      <GlassPanel flush className="flex flex-wrap gap-2 p-2" role="tablist" aria-label="Detection workflow">
+        {(
+          [
+            ['train', Cog, 'Mode 1: Train & Evaluate (80/20 Split)'],
+            ['predict', Zap, 'Mode 2: Predict Using Existing Model (Zero Retraining)'],
+          ] as const
+        ).map(([key, Icon, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={activeWorkflow === key}
+            onClick={() => setActiveWorkflow(key)}
+            className={cx(
+              'flex min-w-60 flex-1 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition',
+              'focus-visible:outline-2 focus-visible:outline-accent',
+              activeWorkflow === key ? 'bg-accent text-accent-fg shadow-glow' : 'text-muted hover:text-fg',
+            )}
+          >
+            <Icon size={16} aria-hidden="true" />
+            {label}
+          </button>
+        ))}
+      </GlassPanel>
 
       {/* MODE 1: TRAIN & EVALUATE */}
       {activeWorkflow === 'train' && (
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h3 className="font-semibold text-white">1. Select Model to Train</h3>
-            <p className="mt-1 text-sm text-slate-400">
+          <GlassPanel>
+            <h3 className="font-semibold">1. Select model to train</h3>
+            <p className="mt-1 text-sm text-muted">
               The model will be trained on 80% of the currently loaded dataset and scored on the 20% test split.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-3">
               <button
+                aria-pressed={selectedModel === 'decision_tree'}
                 onClick={() => setSelectedModel('decision_tree')}
-                className={`rounded-xl px-5 py-3 text-sm font-medium transition ${
-                  selectedModel === 'decision_tree'
-                    ? 'bg-cyan-500 text-slate-950 font-semibold'
-                    : 'border border-slate-700 bg-slate-950 text-slate-300'
-                }`}
+                className={choice(selectedModel === 'decision_tree')}
               >
                 Decision Tree (CART)
               </button>
-
               <button
+                aria-pressed={selectedModel === 'knn'}
                 onClick={() => setSelectedModel('knn')}
-                className={`rounded-xl px-5 py-3 text-sm font-medium transition ${
-                  selectedModel === 'knn'
-                    ? 'bg-cyan-500 text-slate-950 font-semibold'
-                    : 'border border-slate-700 bg-slate-950 text-slate-300'
-                }`}
+                className={choice(selectedModel === 'knn')}
               >
                 KNN (K-Nearest Neighbors)
               </button>
             </div>
 
             {selectedModel === 'knn' && (
-              <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  KNN Distance Metric
-                </label>
-                <div className="mt-2 flex gap-3">
+              <div className="mt-4 rounded-xl border border-line p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted">KNN distance metric</p>
+                <div className="mt-2 flex flex-wrap gap-3">
                   <button
                     type="button"
+                    aria-pressed={knnDistance === 'euclidean'}
                     onClick={() => setKnnDistance('euclidean')}
-                    className={`rounded-lg px-4 py-2 text-xs font-medium transition ${
-                      knnDistance === 'euclidean'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                        : 'border border-slate-800 text-slate-400'
-                    }`}
+                    className={choice(knnDistance === 'euclidean')}
                   >
                     Euclidean (p = 2, A3 default)
                   </button>
                   <button
                     type="button"
+                    aria-pressed={knnDistance === 'manhattan'}
                     onClick={() => setKnnDistance('manhattan')}
-                    className={`rounded-lg px-4 py-2 text-xs font-medium transition ${
-                      knnDistance === 'manhattan'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                        : 'border border-slate-800 text-slate-400'
-                    }`}
+                    className={choice(knnDistance === 'manhattan')}
                   >
                     Manhattan (p = 1, A2 variant tests)
                   </button>
                 </div>
               </div>
             )}
-          </div>
+          </GlassPanel>
 
-          <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5">
+          <GlassPanel glow="accent">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
-                <h3 className="font-semibold text-white">Train & Evaluate</h3>
-                <p className="mt-1 text-sm text-slate-400">
+                <h3 className="font-semibold">Train & Evaluate</h3>
+                <p className="mt-1 text-sm text-muted">
                   Currently loaded dataset in backend:{' '}
-                  <span className="font-semibold text-cyan-300">
-                    {loadedDatasetName || 'None (Load a dataset from the Dataset tab first)'}
-                  </span>
+                  {loadedDatasetName ? (
+                    <span className="font-mono font-semibold text-accent">{loadedDatasetName}</span>
+                  ) : (
+                    <span className="text-sev-medium-fg">
+                      None.{' '}
+                      <a href="#dataset" className="underline underline-offset-4">
+                        Load a dataset first
+                      </a>
+                      .
+                    </span>
+                  )}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted">
                   Splits 80/20, fits scaling & feature selection on 80%, trains model, and stores fitted model in memory.
                 </p>
               </div>
-              <button
+              <Button
                 onClick={handleRunTrainAndEvaluate}
-                disabled={runningDetection || !loadedDatasetName}
-                className="rounded-xl bg-cyan-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!loadedDatasetName}
+                loading={runningDetection}
               >
                 {runningDetection ? 'Training...' : 'Train & Evaluate'}
-              </button>
+              </Button>
             </div>
-          </div>
+          </GlassPanel>
         </div>
       )}
 
       {/* MODE 2: PREDICT USING EXISTING MODEL */}
       {activeWorkflow === 'predict' && (
         <div className="space-y-6">
-          {/* Trained models status */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h3 className="font-semibold text-white">1. Select Retained Trained Model</h3>
-            <p className="mt-1 text-sm text-slate-400">
+          <GlassPanel>
+            <h3 className="font-semibold">1. Select retained trained model</h3>
+            <p className="mt-1 text-sm text-muted">
               Inference uses the existing fitted model and the exact preprocessing statistics learned during training.
             </p>
 
             {trainedModels.length === 0 ? (
-              <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-                <p className="text-sm font-medium text-amber-300">
-                  ⚠️ No models are currently trained in backend memory.
+              <div className="mt-4 rounded-xl border border-sev-medium/40 bg-sev-medium-soft p-4">
+                <p className="flex items-center gap-2 text-sm font-medium text-sev-medium-fg">
+                  <TriangleAlert size={16} aria-hidden="true" />
+                  No models are currently trained in backend memory.
                 </p>
-                <p className="mt-1 text-xs text-amber-200/70">
+                <p className="mt-1 text-xs text-muted">
                   Switch to Mode 1 (Train & Evaluate) to train on your training dataset (e.g.{' '}
-                  <code className="text-white">A2_minus_DDoS.csv</code> or{' '}
-                  <code className="text-white">sample_A3.csv</code>) first.
+                  <code className="font-mono text-fg">A2_minus_DDoS.csv</code> or{' '}
+                  <code className="font-mono text-fg">sample_A3.csv</code>) first.
                 </p>
-                <button
-                  onClick={() => setActiveWorkflow('train')}
-                  className="mt-3 rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-amber-400"
-                >
+                <Button size="sm" className="mt-3" onClick={() => setActiveWorkflow('train')}>
                   Go to Train & Evaluate
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {trainedModels.map((tm) => (
                   <button
                     key={tm.name}
+                    aria-pressed={selectedModel === tm.name}
                     onClick={() => setSelectedModel(tm.name as 'decision_tree' | 'knn')}
-                    className={`rounded-xl border p-4 text-left transition ${
+                    className={cx(
+                      'rounded-xl border p-4 text-left transition focus-visible:outline-2 focus-visible:outline-accent',
                       selectedModel === tm.name
-                        ? 'border-cyan-500 bg-cyan-500/10'
-                        : 'border-slate-800 bg-slate-950 hover:border-slate-700'
-                    }`}
+                        ? 'border-accent bg-accent-soft shadow-glow'
+                        : 'border-line hover:border-line-strong',
+                    )}
                   >
                     <div className="flex items-center justify-between">
-                      <p className="font-semibold text-white">
-                        {tm.name === 'decision_tree' ? 'Decision Tree' : 'KNN'}
-                      </p>
-                      <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">
-                        Trained
-                      </span>
+                      <p className="font-semibold">{modelLabel(tm.name)}</p>
+                      <Pill tone="success">Trained</Pill>
                     </div>
-                    <p className="mt-2 text-xs text-slate-400">
-                      Trained on: <span className="text-cyan-300">{tm.trainedOn}</span>
+                    <p className="mt-2 text-xs text-muted">
+                      Trained on: <span className="font-mono text-accent">{tm.trainedOn}</span>
                     </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Training Rows: {tm.trainRows?.toLocaleString()} · Features: {tm.features}
+                    <p className="mt-1 text-xs text-muted">
+                      Training rows: {tm.trainRows?.toLocaleString()} · Features: {tm.features}
                     </p>
                     {tm.testAccuracy !== undefined && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        Baseline Test Accuracy: {(tm.testAccuracy * 100).toFixed(2)}%
+                      <p className="mt-1 text-xs text-muted">
+                        Baseline test accuracy: {(tm.testAccuracy * 100).toFixed(2)}%
                       </p>
                     )}
                   </button>
                 ))}
               </div>
             )}
-          </div>
+          </GlassPanel>
 
-          {/* Test dataset input */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h3 className="font-semibold text-white">2. Select Evaluation Dataset</h3>
-            <p className="mt-1 text-sm text-slate-400">
-              Evaluate unseen variant test files (e.g. <code className="text-cyan-300">held_DDoS.csv</code>) without retraining.
+          <GlassPanel>
+            <h3 className="font-semibold">2. Select evaluation dataset</h3>
+            <p className="mt-1 text-sm text-muted">
+              Evaluate unseen variant test files (e.g. <code className="font-mono text-accent">held_DDoS.csv</code>) without
+              retraining.
             </p>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex flex-wrap gap-3">
               <button
                 type="button"
+                aria-pressed={evalSource === 'server'}
                 onClick={() => setEvalSource('server')}
-                className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
-                  evalSource === 'server'
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'border border-slate-700 bg-slate-950 text-slate-300'
-                }`}
+                className={choice(evalSource === 'server')}
               >
-                Choose from Server Data Directory
+                Choose from server data directory
               </button>
               <button
                 type="button"
+                aria-pressed={evalSource === 'upload'}
                 onClick={() => setEvalSource('upload')}
-                className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
-                  evalSource === 'upload'
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'border border-slate-700 bg-slate-950 text-slate-300'
-                }`}
+                className={choice(evalSource === 'upload')}
               >
-                Upload Custom CSV File
+                Upload custom CSV file
               </button>
             </div>
 
             {evalSource === 'server' ? (
               <div className="mt-4">
-                <label className="text-xs text-slate-400">Available CSV files on server:</label>
+                <label htmlFor="server-file" className="text-xs text-muted">
+                  Available CSV files on server:
+                </label>
                 <select
+                  id="server-file"
                   value={selectedServerFile}
                   onChange={(e) => setSelectedServerFile(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-cyan-500"
+                  className="mt-2 w-full rounded-xl border border-line bg-void/60 px-4 py-3 font-mono text-sm text-fg outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-accent"
                 >
                   {serverFiles.map((f) => (
                     <option key={f} value={f}>
@@ -482,8 +479,11 @@ export function DetectionPage() {
               </div>
             ) : (
               <div className="mt-4">
-                <label className="text-xs text-slate-400">Select test CSV file:</label>
+                <label htmlFor="eval-upload" className="text-xs text-muted">
+                  Select test CSV file:
+                </label>
                 <input
+                  id="eval-upload"
                   type="file"
                   accept=".csv"
                   onChange={(e) => {
@@ -491,57 +491,68 @@ export function DetectionPage() {
                       setUploadEvalFile(e.target.files[0])
                     }
                   }}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-white file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-500 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-slate-950 hover:file:bg-cyan-400"
+                  className="mt-2 w-full rounded-xl border border-line bg-void/60 p-3 text-sm text-fg file:mr-4 file:rounded-lg file:border-0 file:bg-accent file:px-4 file:py-2 file:text-xs file:font-semibold file:text-accent-fg hover:file:brightness-110"
                 />
                 {uploadEvalFile && (
-                  <p className="mt-2 text-xs text-cyan-300">
+                  <p className="mt-2 text-xs text-accent">
                     Selected: {uploadEvalFile.name} ({(uploadEvalFile.size / 1024).toFixed(1)} KB)
                   </p>
                 )}
               </div>
             )}
-          </div>
+          </GlassPanel>
 
-          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+          <GlassPanel glow="warn">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
-                <h3 className="font-semibold text-white">Execute Inference</h3>
-                <p className="mt-1 text-sm text-slate-400">
-                  Model: <span className="font-semibold text-cyan-300">{selectedModel}</span>
+                <h3 className="font-semibold">Execute inference</h3>
+                <p className="mt-1 text-sm text-muted">
+                  Model: <span className="font-semibold text-accent">{selectedModel}</span>
                   {selectedModelTrained && (
-                    <span> (trained on <code className="text-white">{selectedModelTrained.trainedOn}</code>)</span>
+                    <span>
+                      {' '}
+                      (trained on <code className="font-mono text-fg">{selectedModelTrained.trainedOn}</code>)
+                    </span>
                   )}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted">
                   Strictly applies saved preprocessing statistics. No refitting. Unseen variants remain truly unseen.
                 </p>
               </div>
-              <button
+              <Button
                 onClick={handleRunPredict}
-                disabled={runningDetection || !selectedModelTrained}
-                className="rounded-xl bg-amber-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!selectedModelTrained}
+                loading={runningDetection}
+                className="!bg-sev-medium"
               >
                 {runningDetection ? 'Evaluating...' : 'Evaluate Test Dataset (No Retraining)'}
-              </button>
+              </Button>
             </div>
-          </div>
+          </GlassPanel>
         </div>
       )}
 
-      {/* Progress & Status Message */}
-      <div className="mt-6">
-        <p className="rounded-lg bg-slate-950/60 p-3 text-sm text-slate-300 border border-slate-800">
+      {/* Progress & status message */}
+      <div>
+        <p role="status" className="glass px-4 py-3 text-sm text-muted">
           {demoMessage}
         </p>
         {runningDetection && (
           <div className="mt-4">
-            <div className="mb-2 flex justify-between text-xs text-slate-400">
-              <span>Job Progress</span>
-              <span>{Math.round(detectionProgress * 100)}%</span>
+            <div className="mb-2 flex justify-between text-xs text-muted">
+              <span>Job progress</span>
+              <span className="font-mono">{Math.round(detectionProgress * 100)}%</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+            <div
+              role="progressbar"
+              aria-label="Job progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(detectionProgress * 100)}
+              className="h-2 overflow-hidden rounded-full bg-accent-soft"
+            >
               <div
-                className="h-full rounded-full bg-cyan-400 transition-all"
+                className="h-full rounded-full bg-accent shadow-glow transition-all"
                 style={{ width: `${detectionProgress * 100}%` }}
               />
             </div>
@@ -549,94 +560,73 @@ export function DetectionPage() {
         )}
       </div>
 
-      {/* Results Section */}
+      {/* Results */}
       {detectionResults.length > 0 && (
-        <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-          {/* Metadata banner */}
-          <div className="mb-5 rounded-xl border border-slate-800 bg-slate-950/80 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        <GlassPanel>
+          <div className="mb-5 rounded-xl border border-line p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Evaluated Dataset
-                </span>
-                <p className="text-base font-semibold text-white">
+                <span className="text-xs uppercase tracking-wider text-muted">Evaluated dataset</span>
+                <p className="font-mono text-base font-semibold">
                   {detectionMeta?.evaluatedOn ?? detectionMeta?.datasetName ?? 'Evaluation Dataset'}
                 </p>
               </div>
               {detectionMeta?.trainedOn && (
                 <div>
-                  <span className="text-xs uppercase tracking-wider text-slate-400">
-                    Model Trained On
-                  </span>
-                  <p className="text-base font-semibold text-cyan-300">
-                    {detectionMeta.trainedOn}
-                  </p>
+                  <span className="text-xs uppercase tracking-wider text-muted">Model trained on</span>
+                  <p className="font-mono text-base font-semibold text-accent">{detectionMeta.trainedOn}</p>
                 </div>
               )}
               <div>
-                <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Execution Mode
-                </span>
+                <span className="text-xs uppercase tracking-wider text-muted">Execution mode</span>
                 <p className="mt-0.5">
-                  <span
-                    className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                      detectionMeta?.mode === 'predict'
-                        ? 'border border-amber-500/40 bg-amber-500/10 text-amber-300'
-                        : 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                    }`}
-                  >
+                  <Pill tone={detectionMeta?.mode === 'predict' ? 'medium' : 'success'}>
                     {detectionMeta?.mode === 'predict'
-                      ? '⚡ Inference (Existing Model — Zero Retraining)'
-                      : '⚙ Training Split (80/20 Test Split)'}
-                  </span>
+                      ? 'Inference (existing model, zero retraining)'
+                      : 'Training split (80/20 test split)'}
+                  </Pill>
                 </p>
               </div>
             </div>
           </div>
 
-          <h3 className="font-semibold text-white">Classification Results</h3>
-          <p className="mt-1 text-sm text-slate-400">
+          <h3 className="font-semibold">Classification results</h3>
+          <p className="mt-1 text-sm text-muted">
             {detectionResults.length} records evaluated by the C++ backend using{' '}
-            <span className="text-cyan-300">
-              {detectionMeta?.model === 'decision_tree' ? 'Decision Tree' : 'KNN'}
-            </span>
-            .
+            <span className="text-accent">{detectionMeta?.model === 'decision_tree' ? 'Decision Tree' : 'KNN'}</span>.
           </p>
 
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[650px] text-left text-sm">
-              <thead className="border-b border-slate-700 text-xs uppercase text-slate-400">
+              <thead className="text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-4 py-3">ID</th>
-                  <th className="px-4 py-3">Predicted Class</th>
-                  <th className="px-4 py-3">Confidence</th>
-                  <th className="px-4 py-3">Actual Class</th>
-                  <th className="px-4 py-3">Correct</th>
+                  <th className="py-2 pr-4 font-medium">ID</th>
+                  <th className="py-2 pr-4 font-medium">Predicted class</th>
+                  <th className="py-2 pr-4 font-medium">Confidence</th>
+                  <th className="py-2 pr-4 font-medium">Actual class</th>
+                  <th className="py-2 font-medium">Correct</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody>
                 {detectionResults.slice(0, 20).map((result) => (
-                  <tr key={result.id}>
-                    <td className="px-4 py-3 text-cyan-300">{result.id}</td>
-                    <td className="px-4 py-3 text-white font-medium">{result.label}</td>
-                    <td className="px-4 py-3 text-slate-300">
-                      {(result.confidence * 100).toFixed(1)}%
-                    </td>
-                    <td className="px-4 py-3 text-slate-300">{result.actualLabel}</td>
-                    <td className="px-4 py-3">
-                      <span className={result.correct ? 'text-emerald-400' : 'text-red-400'}>
-                        {result.correct ? 'Yes' : 'No'}
-                      </span>
+                  <tr key={result.id} className="border-t border-line hover:bg-accent-soft">
+                    <td className="py-2.5 pr-4 font-mono text-accent">#{result.id}</td>
+                    <td className="py-2.5 pr-4 font-medium">{result.label}</td>
+                    <td className="py-2.5 pr-4 font-mono">{(result.confidence * 100).toFixed(1)}%</td>
+                    <td className="py-2.5 pr-4">{result.actualLabel}</td>
+                    <td className="py-2.5">
+                      <Pill tone={result.correct ? 'success' : 'danger'}>{result.correct ? 'Yes' : 'No'}</Pill>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-slate-500">
-            Showing first {Math.min(20, detectionResults.length)} of {detectionResults.length} records. See Results & Evaluation page for full confusion matrix and metrics.
+          <p className="mt-3 text-xs text-muted">
+            Showing first {Math.min(20, detectionResults.length)} of {detectionResults.length} records. See Results & Evaluation
+            page for full confusion matrix and metrics.
           </p>
-        </div>
+        </GlassPanel>
       )}
     </div>
   )

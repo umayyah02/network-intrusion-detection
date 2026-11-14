@@ -1,324 +1,280 @@
 import { useEffect, useState } from 'react'
+import { Database, Layers, FlaskConical, Columns3, Search, CheckCircle2 } from 'lucide-react'
 import { apiFetch } from '../api/client'
+import { throwApiError } from '../api/ApiError'
 import { endpoints } from '../api/endpoints'
-import { MetricCard } from '../components/MetricCard'
 import { PageHeading } from '../components/PageHeading'
+import { EmptyState, ErrorState, StatCard } from '../components/charts'
+import { Button, GlassPanel, Pill, Skeleton, cx } from '../components/ui'
+import { describeError } from '../lib/describeError'
 import type { DatasetItem, DatasetSummary, DatasetPreview } from '../types/api'
 
 export function DatasetPage() {
   const [search, setSearch] = useState('')
-
   const [dataset, setDataset] = useState('')
+  const [datasets, setDatasets] = useState<DatasetItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [summary, setSummary] = useState<DatasetSummary | null>(null)
+  const [error, setError] = useState<unknown>(null)
+  const [reload, setReload] = useState(0)
 
-const [datasets, setDatasets] = useState<DatasetItem[]>([])
+  const [loadingDataset, setLoadingDataset] = useState(false)
+  const [loadMessage, setLoadMessage] = useState('')
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [preview, setPreview] = useState<DatasetPreview | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<unknown>(null)
 
-const [loading, setLoading] = useState(true)
-const [summary, setSummary] = useState<DatasetSummary | null>(null)
-const [error, setError] = useState('')
+  async function fetchDatasetPreview() {
+    setPreviewLoading(true)
+    setPreviewError(null)
+    setPreview(null)
 
+    try {
+      const response = await apiFetch(endpoints.datasetPreview)
+      if (!response.ok) await throwApiError(response, 'Preview')
+      const data = await response.json()
+      setPreview(data)
+    } catch (err) {
+      setPreviewError(err)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
 
+  useEffect(() => {
+    const controller = new AbortController()
 
-const [loadingDataset, setLoadingDataset] = useState(false)
-const [loadMessage, setLoadMessage] = useState('')
-const [preview, setPreview] = useState<DatasetPreview | null>(null)
+    async function loadDatasets() {
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await apiFetch(endpoints.datasets, { signal: controller.signal })
+        if (!response.ok) await throwApiError(response, 'Datasets')
 
-const [previewLoading, setPreviewLoading] = useState(false)
-const [previewError, setPreviewError] = useState('')
-async function fetchDatasetPreview() {
-  setPreviewLoading(true)
-  setPreviewError('')
-  setPreview(null)
+        const data = await response.json()
+        setDatasets(data.datasets)
 
-  try {
-    const response = await apiFetch(
-      endpoints.datasetPreview
-    )
+        const loaded = data.datasets.find((item: { name: string; status: string }) => item.status === 'Loaded')
+        setDataset(loaded?.name ?? '')
+        const summaryResponse = await apiFetch(endpoints.datasetSummary, { signal: controller.signal })
+        if (!summaryResponse.ok) await throwApiError(summaryResponse, 'Summary')
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(
-        errorData.error?.message ?? `Preview API error: ${response.status}`
-      )
+        const summaryData = await summaryResponse.json()
+        setSummary(summaryData)
+        await fetchDatasetPreview()
+      } catch (err) {
+        if (controller.signal.aborted) return
+        setError(err)
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
     }
 
-    const data = await response.json()
-    setPreview(data)
-  } catch (err) {
-    setPreviewError(
-      err instanceof Error ? err.message : 'Failed to load CSV preview'
-    )
-  } finally {
-    setPreviewLoading(false)
-  }
-}
+    loadDatasets()
+    return () => controller.abort()
+  }, [reload])
 
-useEffect(() => {
-  const controller = new AbortController()
+  async function handleLoadDataset() {
+    if (!dataset || loadingDataset) return
 
-  async function loadDatasets() {
+    setLoadingDataset(true)
+    setLoadFailed(false)
+    setLoadMessage('Loading dataset...')
+
     try {
-      const response = await apiFetch(endpoints.datasets, {
-        signal: controller.signal,
+      const response = await apiFetch(endpoints.dataset, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: dataset }),
       })
+      if (!response.ok) await throwApiError(response, 'Dataset')
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
-      }
+      const refresh = await apiFetch(endpoints.datasets)
+      if (!refresh.ok) await throwApiError(refresh, 'Refresh')
 
-      const data = await response.json()
+      const data = await refresh.json()
       setDatasets(data.datasets)
-
-      const loaded = data.datasets.find(
-        (item: { name: string; status: string }) => item.status === 'Loaded'
-      )
-      setDataset(loaded?.name ?? '')
-      const summaryResponse = await apiFetch(
-        endpoints.datasetSummary,
-        { signal: controller.signal }
-      )
-
-      if (!summaryResponse.ok) {
-        throw new Error(`Summary API error: ${summaryResponse.status}`)
-      }
+      const summaryResponse = await apiFetch(endpoints.datasetSummary)
+      if (!summaryResponse.ok) await throwApiError(summaryResponse, 'Summary')
 
       const summaryData = await summaryResponse.json()
       setSummary(summaryData)
       await fetchDatasetPreview()
+
+      setLoadMessage(`${dataset} loaded successfully!`)
     } catch (err) {
-      if (controller.signal.aborted) return
-      setError(err instanceof Error ? err.message : 'Failed to load datasets')
+      setLoadFailed(true)
+      setLoadMessage(err instanceof Error ? err.message : 'Failed to load dataset')
     } finally {
-      if (!controller.signal.aborted) setLoading(false)
+      setLoadingDataset(false)
     }
   }
 
-  loadDatasets()
-
-  return () => controller.abort()
-}, [])
-async function handleLoadDataset() {
-  if (!dataset || loadingDataset) return
-
-  setLoadingDataset(true)
-  setLoadMessage('Loading dataset...')
-
-  try {
-    const response = await apiFetch(endpoints.dataset, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ path: dataset }),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(
-        errorData.error?.message ?? `API error: ${response.status}`
-      )
-    }
-
-    const refresh = await apiFetch(endpoints.datasets)
-
-    if (!refresh.ok) {
-      throw new Error(`Refresh error: ${refresh.status}`)
-    }
-
-    const data = await refresh.json()
-    setDatasets(data.datasets)
-    const summaryResponse = await apiFetch(
-      endpoints.datasetSummary
-    )
-
-    if (!summaryResponse.ok) {
-      throw new Error(`Summary API error: ${summaryResponse.status}`)
-    }
-
-    const summaryData = await summaryResponse.json()
-    setSummary(summaryData)
-    await fetchDatasetPreview()
-    
-    setLoadMessage(`${dataset} loaded successfully!`)
-  } catch (err) {
-    setLoadMessage(
-      err instanceof Error ? err.message : 'Failed to load dataset'
-    )
-  } finally {
-    setLoadingDataset(false)
-  }
-}
-  const filtered = datasets.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase()),
-  )
+  const filtered = datasets.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()))
+  const loadedName = datasets.find((item) => item.status === 'Loaded')?.name
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeading
         title="Dataset management"
         description="Review available datasets and prepare network traffic data for analysis."
       />
-          {summary?.loaded && summary.rows && (
-      <div className="mb-6 grid gap-4 sm:grid-cols-1">
-        <MetricCard
-          title="Total Records"
-          value={summary.rows.total.toLocaleString()}
-          note={`Loaded dataset: ${summary.name}`}
-          icon="▤"
-          color="bg-cyan-500/10 text-cyan-300"
-        />
 
-        <MetricCard
-          title="Training Records"
-          value={summary.rows.train.toLocaleString()}
-          note="Records used for model training"
-          icon="⚙"
-          color="bg-emerald-500/10 text-emerald-300"
-        />
+      {!!error && !loading && <ErrorState error={error} what="datasets" onRetry={() => setReload((n) => n + 1)} />}
 
-        <MetricCard
-          title="Testing Records"
-          value={summary.rows.test.toLocaleString()}
-          note="Records reserved for evaluation"
-          icon="✓"
-          color="bg-violet-500/10 text-violet-300"
-        />
-      </div>
-    )}
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <MetricCard
-          title="Available datasets"
-          value={loading ? '...' : error ? 'Unavailable' : String(datasets.length)}
-          note="Datasets reported by C++ backend"
-          icon="▤"
-          color="bg-cyan-500/10 text-cyan-300"
-        />
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search datasets..."
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-500 sm:max-w-sm"
+      {summary?.loaded && summary.rows && (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            title="Total records"
+            value={summary.rows.total.toLocaleString()}
+            note={`Loaded dataset: ${summary.name}`}
+            icon={Database}
           />
-          <span className="text-xs text-slate-500">
-            Select a dataset and click Load Selected Dataset to activate it.
-          </span>
-        </div>
-
-        <div className="mt-5 space-y-3">
-          {loading && (
-            <p className="text-sm text-cyan-300">
-              Loading datasets from backend...
-            </p>
-          )}
-
-          {error && (
-            <p className="text-sm text-red-400">
-              Failed to connect to backend: {error}
-            </p>
-          )}
-          {filtered.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => setDataset(item.name)}
-              className={`flex w-full flex-col justify-between gap-3 rounded-xl border p-4 text-left transition sm:flex-row sm:items-center ${
-                dataset === item.name
-                  ? 'border-cyan-500/50 bg-cyan-500/5'
-                  : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'
-              }`}
-            >
-              <div>
-                <p className="font-medium text-white">{item.name}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Records: {item.records === null ? 'Not loaded' : item.records.toLocaleString()} · Features: {item.features === null ? 'Not loaded' : item.features}
-                </p>
-              </div>
-              <span className="w-fit rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300">
-                {item.status}
-              </span>
-            </button>
-          ))}
-          {!loading && !error && filtered.length === 0 && (
-            <p className="py-8 text-center text-sm text-slate-500">No matching datasets found.</p>
+          <StatCard
+            title="Training records"
+            value={summary.rows.train.toLocaleString()}
+            note="Records used for model training"
+            icon={Layers}
+            tone="text-teal"
+          />
+          <StatCard
+            title="Testing records"
+            value={summary.rows.test.toLocaleString()}
+            note="Records reserved for evaluation"
+            icon={FlaskConical}
+            tone="text-sev-medium"
+          />
+          {summary.featureCount !== undefined && (
+            <StatCard
+              title="Features"
+              value={String(summary.featureCount)}
+              note="Columns used by the models"
+              icon={Columns3}
+            />
           )}
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-4">
-          <button
-            onClick={handleLoadDataset}
-            disabled={!dataset || loadingDataset}
-            className="rounded-xl bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loadingDataset ? 'Loading...' : 'Load Selected Dataset'}
-          </button>
+      )}
 
-          {loadMessage && (
-            <p className="text-sm text-slate-300">{loadMessage}</p>
-          )}
-        </div>
-        <p className="mt-5 text-xs text-slate-500">
-          Selected dataset: <span className="text-cyan-300">{dataset || 'None'}</span>
-          {' · '}
-          Loaded in backend: <span className="text-emerald-300">
-            {datasets.find((item) => item.status === 'Loaded')?.name ?? 'None'}
-          </span>
-        </p>
+      {!error && (
+        <GlassPanel>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-sm">
+              <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                aria-label="Search datasets"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search datasets..."
+                className="w-full rounded-xl border border-line bg-void/60 py-3 pl-10 pr-4 text-sm text-fg outline-none placeholder:text-muted focus:border-accent focus-visible:outline-2 focus-visible:outline-accent"
+              />
             </div>
+            <span className="text-xs text-muted">
+              {loading ? 'Loading…' : `${datasets.length} datasets reported by the C++ backend.`} Select one and click Load Selected Dataset to activate it.
+            </span>
+          </div>
 
-      {/* Real CSV Dataset Preview */}
-      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-        <h3 className="text-lg font-semibold text-white">
-          CSV Dataset Preview
-        </h3>
+          <div className="mt-5 max-h-96 space-y-2 overflow-y-auto pr-1" aria-busy={loading || undefined}>
+            {loading &&
+              Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-16 w-full" />)}
 
-        <p className="mt-2 text-sm text-slate-400">
-          Preview of actual CSV records returned by the C++ backend.
-        </p>
+            {!loading &&
+              filtered.map((item) => {
+                const selected = dataset === item.name
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setDataset(item.name)}
+                    className={cx(
+                      'flex w-full flex-col justify-between gap-2 rounded-xl border p-4 text-left transition sm:flex-row sm:items-center',
+                      'focus-visible:outline-2 focus-visible:outline-accent',
+                      selected ? 'border-accent bg-accent-soft shadow-glow' : 'border-line hover:border-line-strong',
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-sm font-medium">{item.name}</p>
+                      <p className="mt-1 text-xs text-muted">
+                        Records: {item.records === null ? 'Not loaded' : item.records.toLocaleString()} · Features:{' '}
+                        {item.features === null ? 'Not loaded' : item.features}
+                      </p>
+                    </div>
+                    <Pill tone={item.status === 'Loaded' ? 'success' : 'neutral'} className="w-fit">
+                      {item.status}
+                    </Pill>
+                  </button>
+                )
+              })}
+
+            {!loading && filtered.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted">No matching datasets found.</p>
+            )}
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-4">
+            <Button onClick={handleLoadDataset} disabled={!dataset} loading={loadingDataset}>
+              {loadingDataset ? 'Loading...' : 'Load Selected Dataset'}
+            </Button>
+            {loadMessage && (
+              <p
+                role="status"
+                className={cx('flex items-center gap-2 text-sm', loadFailed ? 'text-sev-high-fg' : 'text-muted')}
+              >
+                {!loadFailed && !loadingDataset && <CheckCircle2 size={16} className="text-accent" aria-hidden="true" />}
+                {loadMessage}
+              </p>
+            )}
+          </div>
+
+          <p className="mt-5 text-xs text-muted">
+            Selected dataset: <span className="font-mono text-accent">{dataset || 'None'}</span>
+            {' · '}
+            Loaded in backend: <span className="font-mono text-teal">{loadedName ?? 'None'}</span>
+          </p>
+        </GlassPanel>
+      )}
+
+      <GlassPanel>
+        <h3 className="text-lg font-semibold">CSV dataset preview</h3>
+        <p className="mt-1 text-sm text-muted">Preview of actual CSV records returned by the C++ backend.</p>
 
         {previewLoading && (
-          <p className="mt-4 text-cyan-300">
-            Loading CSV preview...
-          </p>
+          <div className="mt-4 space-y-2" aria-busy="true" aria-label="Loading CSV preview">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
         )}
 
-        {previewError && (
-          <p className="mt-4 text-red-400">
-            {previewError}
-          </p>
-        )}
+        {!previewLoading && !!previewError && <PreviewProblem error={previewError} />}
 
         {!previewLoading && !previewError && preview && (
           <>
-            <p className="mt-4 text-sm text-slate-300">
-              Dataset: <span className="text-cyan-300">{preview.datasetName}</span>
+            <p className="mt-4 text-sm">
+              Dataset: <span className="font-mono text-accent">{preview.datasetName}</span>
               {' · '}Showing {preview.rows.length} rows
-              {' · '}{preview.columns.length} columns
+              {' · '}
+              {preview.columns.length} columns
             </p>
 
-            <div className="mt-5 max-h-[500px] overflow-auto rounded-xl border border-slate-800">
+            <div className="mt-4 max-h-[500px] overflow-auto rounded-xl border border-line">
               <table className="min-w-max text-left text-xs">
-                <thead className="sticky top-0 bg-slate-800 text-slate-200">
+                <thead className="sticky top-0 bg-panel-solid text-muted">
                   <tr>
                     {preview.columns.map((column, index) => (
-                      <th
-                        key={index}
-                        className="whitespace-nowrap border-r border-slate-700 px-4 py-3 font-semibold"
-                      >
+                      <th key={index} className="whitespace-nowrap border-r border-line px-4 py-3 font-semibold">
                         {column}
                       </th>
                     ))}
                   </tr>
                 </thead>
-
-                <tbody className="divide-y divide-slate-800">
+                <tbody>
                   {preview.rows.map((row, rowIndex) => (
-                    <tr key={rowIndex} className="hover:bg-slate-800/40">
+                    <tr key={rowIndex} className="border-t border-line hover:bg-accent-soft">
                       {preview.columns.map((_, columnIndex) => (
-                        <td
-                          key={columnIndex}
-                          className="whitespace-nowrap border-r border-slate-800 px-4 py-3 text-slate-300"
-                        >
+                        <td key={columnIndex} className="whitespace-nowrap border-r border-line px-4 py-2.5 font-mono">
                           {row[columnIndex] ?? ''}
                         </td>
                       ))}
@@ -331,11 +287,21 @@ async function handleLoadDataset() {
         )}
 
         {!previewLoading && !previewError && !preview && (
-          <p className="mt-4 text-slate-400">
-            No CSV preview available.
-          </p>
+          <p className="mt-4 text-sm text-muted">No CSV preview available.</p>
         )}
-      </div>
+      </GlassPanel>
     </div>
+  )
+}
+
+/** No dataset yet is a step to do, not a failure. */
+function PreviewProblem({ error }: { error: unknown }) {
+  const v = describeError(error, 'the CSV preview')
+  if (v.kind === 'setup')
+    return <EmptyState title={v.title} body="Select a dataset above and load it to see a preview." cta={false} />
+  return (
+    <p role="alert" className="mt-4 text-sm text-sev-high-fg">
+      {v.title}: {v.body}
+    </p>
   )
 }
