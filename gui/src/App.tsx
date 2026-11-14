@@ -1,3 +1,4 @@
+import { BootScreen } from './components/intro/BootScreen'
 import { AppShell } from './components/layout/AppShell'
 import { PageTransition } from './components/layout/PageTransition'
 import { useHashPage } from './hooks/useHashPage'
@@ -29,9 +30,12 @@ function App() {
   }
 
   return (
-    <AppShell activePage={activePage} onNavigate={navigate}>
-      <PageTransition pageKey={activePage}>{renderPage()}</PageTransition>
-    </AppShell>
+    <>
+      <AppShell activePage={activePage} onNavigate={navigate}>
+        <PageTransition pageKey={activePage}>{renderPage()}</PageTransition>
+      </AppShell>
+      <BootScreen />
+    </>
   )
 }
 
