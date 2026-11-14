@@ -7,4 +7,4 @@ data/full/
 .testdata.exe
 .tune_knn.exe
 .tune_tree.exe
-data/sample_C.csv
+
