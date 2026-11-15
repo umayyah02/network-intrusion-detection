@@ -117,11 +117,11 @@ function ModelCard({ model, report }: { model: EvaluationModel; report?: Evaluat
     )
   }
 
-  const scores = [
+    const scores = [
     { name: 'Accuracy', value: report.metrics.accuracy },
-    { name: 'Precision', value: getMacroMetric(report, 'precision') },
-    { name: 'Recall', value: getMacroMetric(report, 'recall') },
-    { name: 'F1-score', value: report.metrics.macroF1 },
+    { name: 'Macro Precision', value: getMacroMetric(report, 'precision') },
+    { name: 'Macro Recall', value: getMacroMetric(report, 'recall') },
+    { name: 'Macro F1-score', value: report.metrics.macroF1 },
   ]
 
   return (
@@ -136,6 +136,13 @@ function ModelCard({ model, report }: { model: EvaluationModel; report?: Evaluat
           {report.trainRows ? ` (${report.trainRows.toLocaleString()} rows)` : ''}
         </p>
       )}
+
+        <p className="mt-1 text-xs text-muted">
+        Evaluated on:{' '}
+        <span className="font-semibold text-accent">
+          {report.evaluatedOn || 'Not provided by backend'}
+        </span>
+      </p>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         {scores.map((score) => (
@@ -238,32 +245,28 @@ export function ResultsPage() {
 
       {!loading && error == null && evaluation && (
         <>
-          <GlassPanel>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <span className="text-xs uppercase tracking-wider text-muted">
-                  Evaluated Dataset
-                </span>
-                <p className="text-base font-semibold">{evaluation.datasetName}</p>
-              </div>
-              {evaluation.trainedOn && (
-                <div>
-                  <span className="text-xs uppercase tracking-wider text-muted">
-                    Model Trained On
-                  </span>
-                  <p className="text-base font-semibold text-accent">{evaluation.trainedOn}</p>
-                </div>
-              )}
-              <div>
-                <span className="text-xs uppercase tracking-wider text-muted">
-                  Execution Mode
-                </span>
-                <p className="mt-0.5">
-                  <ModeBadge mode={evaluation.mode} />
+                    <GlassPanel>
+            <p className="text-sm">
+              Each model's evaluation dataset, training dataset, and execution mode are shown in
+              its own result card. Compare scores directly only when both models were evaluated
+              on the same test dataset.
+            </p>
+          </GlassPanel>
+
+          {evaluation.models.decision_tree &&
+            evaluation.models.knn &&
+            (!evaluation.models.decision_tree.evaluatedOn ||
+              !evaluation.models.knn.evaluatedOn ||
+              evaluation.models.decision_tree.evaluatedOn !== evaluation.models.knn.evaluatedOn) && (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+                <p className="text-sm font-semibold text-amber-300">⚠ Model Comparison Warning</p>
+                <p className="mt-2 text-sm text-amber-200">
+                  These models were evaluated on different datasets, or their evaluation datasets
+                  could not be verified. Their scores should not be treated as a fair same-dataset
+                  comparison.
                 </p>
               </div>
-            </div>
-          </GlassPanel>
+            )}
 
           <h3 className="text-lg font-semibold">Side-by-Side Model Evaluation</h3>
 

@@ -78,6 +78,16 @@ export function Dashboard() {
         )
 
         if (!response.ok) {
+          if (response.status === 409) {
+            const errorBody = await response.clone().json().catch(() => null)
+            if (errorBody?.error?.code === 'NO_RESULTS') {
+              if (!controller.signal.aborted) {
+                setDashboardData(null)
+                setDashboardError(null)
+              }
+              return
+            }
+          }
           await throwApiError(response, 'Dashboard')
         }
 

@@ -1,0 +1,13 @@
+model,metric,previousRows,currentRows,datasetSizeRatio,executionTimeRatio
+decision_tree,trainSeconds,327,817,2.498,1.997
+decision_tree,trainSeconds,817,1632,1.998,2.092
+decision_tree,trainSeconds,1632,3263,1.999,2.728
+decision_tree,predictSeconds,327,817,2.498,1.073
+decision_tree,predictSeconds,817,1632,1.998,0.966
+decision_tree,predictSeconds,1632,3263,1.999,1.14
+knn,trainSeconds,327,817,2.498,2.633
+knn,trainSeconds,817,1632,1.998,1.487
+knn,trainSeconds,1632,3263,1.999,1.894
+knn,predictSeconds,327,817,2.498,1.76
+knn,predictSeconds,817,1632,1.998,2.029
+knn,predictSeconds,1632,3263,1.999,1.889

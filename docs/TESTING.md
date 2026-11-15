@@ -15,7 +15,7 @@ g++ -std=c++17 -Wall -Wextra -Iinclude tests/testdata.cpp src/data/cleaner.cpp s
 On Windows PowerShell, run `.\test_data.exe` instead of `./test_data`.
 Expected last line: `All data-layer tests passed`.
 
-## 2. Tests still to write (Member 4)
+## 2. Automated test suites
 
 | Test file | What it checks | Run it with (planned) |
 |---|---|---|
@@ -68,14 +68,125 @@ Try each one. The program must give a clear error and must not crash.
 - [ ] Very large file
 - [ ] Unknown label in the label column
 
+
+
 ## 4. Speed and complexity experiments
 
-1. Use the same prepared sample for both models, with a fixed seed.
-2. Row counts: 1,000, 5,000, 10,000, 25,000, 50,000 (lower if KNN is too slow).
-3. For each size and model, record training time and prediction time. Run 3 times and take the average.
-4. Save results as a CSV: `model,rows,trainSeconds,predictSeconds`.
-5. Plot time against size and compare with the theory (Decision Tree about n log n to train, KNN about n per prediction).
-6. Write down the computer used (CPU and RAM) next to the results.
+### Experiment configuration
+
+- Dataset: `sample_A3.csv` (loaded as `uploads/sample_A3.csv`)
+- Total records: 4,079
+- Training records: 3,263
+- Test records: 816
+- Features: 20
+- Classes: 4
+- Models: Decision Tree and KNN
+- Training-data fractions: 10%, 25%, 50%, 100%
+- Repetitions: 3 per configuration
+- Random seed: 42
+- Experiment date: November 14, 2026
+
+### Hardware
+
+- CPU: 11th Gen Intel Core i5-1135G7 @ 2.40 GHz
+- RAM: 11.73 GB
+
+### Procedure
+
+1. Load the A3 dataset and use the prepared training and test split.
+2. Train both models using 10%, 25%, 50%, and 100% of the training records.
+3. Use the same full test split (816 records) for every experiment.
+4. Repeat each configuration three times and record average training and prediction times.
+5. Save the raw backend response in `complexity_A3_job5_2026-11-14.json`.
+6. Convert the average timings from milliseconds to seconds and save them in `complexity_results_A3.csv` using the format:
+   `model,rows,trainSeconds,predictSeconds`.
+7. Generate training-time and prediction-time graphs using `plot_complexity.py`.
+8. Compare measured trends with theoretical algorithm complexity.
+9. Calculate execution-time growth ratios between consecutive dataset sizes and save them in `complexity_growth_ratios_A3.csv`.
+
+### Results and observations
+
+Average execution times across 3 repetitions:
+
+| Model | Training records | Training time (seconds) | Prediction time (seconds) |
+|---|---:|---:|---:|
+| Decision Tree | 327 | 0.003344 | 0.000055 |
+| Decision Tree | 817 | 0.006679 | 0.000059 |
+| Decision Tree | 1,632 | 0.013970 | 0.000057 |
+| Decision Tree | 3,263 | 0.038112 | 0.000065 |
+| KNN | 327 | 0.000060 | 0.015328 |
+| KNN | 817 | 0.000158 | 0.026983 |
+| KNN | 1,632 | 0.000235 | 0.054742 |
+| KNN | 3,263 | 0.000445 | 0.103408 |
+
+Observations:
+
+- Decision Tree training time increased as the training dataset grew.
+- Decision Tree prediction time remained very low and relatively stable while the test set stayed fixed at 816 records.
+- KNN training time remained comparatively low because it mainly stores the training records.
+- KNN prediction time increased as the training dataset grew because predictions require comparisons with stored training records.
+- The observed trends broadly align with the expected behaviour of both algorithms.
+- The prediction-time graph uses a logarithmic Y-axis because the prediction times of the two models differ substantially.
+- All configurations used the same 816 test records.
+
+### Growth-ratio analysis
+
+The growth-ratio analysis compares the change in execution time with the change in training dataset size between consecutive configurations.
+
+| Model | Measurement | Observed execution-time growth |
+|---|---|---|
+| Decision Tree | Training | 1.997x, 2.092x, 2.728x |
+| Decision Tree | Prediction | 1.073x, 0.966x, 1.140x |
+| KNN | Training | 2.633x, 1.487x, 1.894x |
+| KNN | Prediction | 1.760x, 2.029x, 1.889x |
+
+The corresponding dataset-size increases were approximately 2.0x to 2.5x.
+
+Observations:
+
+- Decision Tree training time generally increased with dataset size, with a larger increase in the final interval.
+- Decision Tree prediction time remained relatively stable.
+- KNN prediction time increased approximately in proportion to dataset size.
+- KNN training measurements increased, although its training operation primarily involves storing the training records.
+
+These ratios are based on four dataset sizes and should be treated as experimental observations, not proof of asymptotic complexity.
+
+### Theoretical complexity
+
+Let `n` represent the number of training records, `f` the number of features, and `h` the height of the Decision Tree.
+
+| Model | Training complexity | Prediction complexity |
+|---|---|---|
+| Decision Tree | O(n f log n) | O(h) per record |
+| KNN | Stores training records | Approximately O(n f) per query on average in this implementation |
+
+The KNN implementation uses `nth_element` to select the nearest neighbours. Its prediction work therefore grows with the number of stored training records.
+
+The theoretical growth curves in the graphs are normalized to the final measured execution time. They illustrate theoretical growth patterns and are not actual predicted execution times.
+
+These theoretical complexities describe expected algorithmic behaviour; the measured execution times are practical observations and do not prove asymptotic complexity.
+
+### Memory measurement limitation
+
+Memory usage was not returned by the backend (`memoryBytes: null`) and is therefore reported as unavailable rather than estimated.
+
+### Limitations
+
+- Execution times are wall-clock measurements from the server machine and may vary across hardware and runs.
+- Results are based on one dataset and one machine.
+- Only average timings were returned; individual repetition timings and variation were not available.
+- Memory usage could not be measured because the backend returned `memoryBytes: null`.
+- Four dataset sizes are insufficient to establish asymptotic complexity experimentally.
+
+### Evidence files
+
+- `complexity_A3_job5_2026-11-14.json` — raw backend experiment response
+- `complexity_results_A3.csv` — recorded average measurements
+- `complexity_metadata_A3.json` — experiment configuration and hardware details
+- `complexity_training.png` — training-time graph
+- `complexity_prediction.png` — prediction-time graph
+- `complexity_growth_ratios_A3.csv` — execution-time growth-ratio analysis
+- `plot_complexity.py` — graph-generation and analysis script
 
 ## 5. Definition of done
 

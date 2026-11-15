@@ -93,6 +93,7 @@ export function ComplexityPage() {
   const [starting, setStarting] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [runError, setRunError] = useState<unknown>(null)
+  const [previousFinishedAt, setPreviousFinishedAt] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -117,18 +118,34 @@ export function ComplexityPage() {
   }, [reloadKey])
 
   // After a benchmark is started, check for results every few seconds until it is ready.
-  useEffect(() => {
+    useEffect(() => {
     if (!waiting) return
     const controller = new AbortController()
+    let attempts = 0
 
     const interval = setInterval(async () => {
       try {
         const response = await apiFetch(endpoints.complexity, { signal: controller.signal })
         if (!response.ok) await throwApiError(response, 'Complexity')
         const result: ComplexityResponse = await response.json()
-        if (result.ready) {
+        if (controller.signal.aborted) return
+
+        const completed =
+          result.ready &&
+          result.runs.length > 0 &&
+          Boolean(result.finishedAt) &&
+          result.finishedAt !== previousFinishedAt
+
+        if (completed) {
           setData(result)
           setWaiting(false)
+          return
+        }
+
+        attempts++
+        if (attempts >= 90) {
+          setWaiting(false)
+          setRunError(new Error('Could not confirm completion. Please refresh benchmarks to check.'))
         }
       } catch (err) {
         if (!controller.signal.aborted) {
@@ -142,7 +159,7 @@ export function ComplexityPage() {
       clearInterval(interval)
       controller.abort()
     }
-  }, [waiting])
+  }, [waiting, previousFinishedAt])
 
   async function runBenchmarks() {
     if (starting || waiting) return
@@ -159,6 +176,7 @@ export function ComplexityPage() {
 
       if (!response.ok) await throwApiError(response, 'Benchmark')
 
+      setPreviousFinishedAt(data?.finishedAt ?? null)
       setData((previous) => (previous ? { ...previous, ready: false, runs: [] } : null))
       setWaiting(true)
     } catch (err) {
@@ -209,7 +227,7 @@ export function ComplexityPage() {
         <Button
           variant="ghost"
           onClick={() => setReloadKey((key) => key + 1)}
-          disabled={loading}
+          disabled={loading || starting || waiting}
         >
           {loading ? 'Loading...' : 'Refresh benchmarks'}
         </Button>
@@ -260,8 +278,7 @@ export function ComplexityPage() {
       {!loading && error == null && data && !data.ready && !waiting && (
         <GlassPanel className="border-sev-medium/30">
           <p className="text-sev-medium-fg">
-            Benchmarks are not ready yet. If a benchmark job is running, wait for completion
-            and click Refresh benchmarks.
+            Benchmarks are not ready yet. Run a new benchmark to generate results.
           </p>
         </GlassPanel>
       )}

@@ -8,7 +8,7 @@ import type { DetectionResult, RetainedModelInfo } from '../types/api'
 
 export function DetectionPage() {
   const [activeWorkflow, setActiveWorkflow] = useState<'train' | 'predict'>('train')
-  const [demoMessage, setDemoMessage] = useState('No detection or inference job has been run.')
+  const [demoMessage, setDemoMessage] = useState('Checking previous detection results...')
   const [selectedModel, setSelectedModel] = useState<'decision_tree' | 'knn'>('decision_tree')
   const [knnDistance, setKnnDistance] = useState<'euclidean' | 'manhattan'>('euclidean')
   const [runningDetection, setRunningDetection] = useState(false)
@@ -31,6 +31,12 @@ export function DetectionPage() {
   const [uploadEvalFile, setUploadEvalFile] = useState<File | null>(null)
   const [evalSource, setEvalSource] = useState<'server' | 'upload'>('server')
   const [loadedDatasetName, setLoadedDatasetName] = useState<string>('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalRecords, setTotalRecords] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [resultsRevision, setResultsRevision] = useState(0)
+  const [resultModel, setResultModel] = useState<'decision_tree' | 'knn' | ''>('')
+  const pageSize = 20
 
   useEffect(() => {
     fetchTrainedModels()
@@ -38,14 +44,161 @@ export function DetectionPage() {
     fetchLoadedDataset()
   }, [])
 
+    // On page open, restore the existing backend job. GET only: it never retrains.
+  useEffect(() => {
+    let active = true
+
+    async function restoreDetectionStatus() {
+      try {
+        const response = await apiFetch(endpoints.detectStatus)
+        if (!response.ok) return
+        const status = await response.json()
+        if (!active || (status.type !== 'detect' && status.type !== 'predict')) return
+
+        setActiveWorkflow(status.type === 'predict' ? 'predict' : 'train')
+
+        if (status.model === 'knn' || status.model === 'decision_tree') {
+          setSelectedModel(status.model)
+          setResultModel(status.model)
+        }
+        if (status.state === 'running') {
+          setRunningDetection(true)
+          setPollingDetection(true)
+          setDetectionProgress(status.progress ?? 0)
+          setDemoMessage(status.type === 'predict' ? 'Prediction is running...' : 'Training is running...')
+        } else if (status.state === 'done') {
+          setDetectionProgress(1)
+          setDemoMessage('Previous job completed successfully.')
+        } else if (status.state === 'failed') {
+          setDemoMessage(status.message || 'Previous detection failed.')
+        }
+      } catch {
+        // The results request below surfaces any relevant API error.
+      }
+    }
+
+    void restoreDetectionStatus()
+    return () => { active = false }
+  }, [])
+
+  // Load the requested results page from the backend.
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadDetectionPage() {
+      try {
+        const response = await apiFetch(
+          `${endpoints.detections}?page=${currentPage}&pageSize=${pageSize}${resultModel ? `&model=${resultModel}` : ''}`,
+          { signal: controller.signal }
+        )
+
+        if (response.status === 409) {
+          const errorBody = await response.clone().json().catch(() => null)
+          if (errorBody?.error?.code === 'NO_RESULTS') {
+            if (!controller.signal.aborted) {
+              setDetectionResults([])
+              setTotalRecords(0)
+              setTotalPages(1)
+              setDetectionMeta(null)
+              setDemoMessage((previous) =>
+                previous === 'Checking previous detection results...'
+                  ? 'No detection job has been run.'
+                  : previous
+              )
+            }
+            return
+          }
+        }
+        if (!response.ok) {
+          throw new Error(`Detections API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        if (controller.signal.aborted) return
+        setDetectionResults(data.items ?? [])
+        setTotalRecords(data.total ?? 0)
+        setTotalPages(data.pages ?? 1)
+        setDetectionMeta({
+          model: data.model,
+          datasetName: data.datasetName,
+          trainedOn: data.trainedOn,
+          evaluatedOn: data.evaluatedOn,
+          mode: data.mode,
+          total: data.total,
+        })
+        if (data.pages && currentPage > data.pages) {
+          setCurrentPage(data.pages)
+        }
+        setDemoMessage((previous) =>
+          previous === 'Checking previous detection results...' ||
+          previous === 'No detection job has been run.'
+            ? 'Previous detection results restored.'
+            : previous
+        )
+      } catch (error) {
+        if (controller.signal.aborted) return
+        setDemoMessage(error instanceof Error ? error.message : 'Failed to load detection results')
+      }
+    }
+
+    void loadDetectionPage()
+    return () => controller.abort()
+  }, [currentPage, resultsRevision, resultModel])
+
   useEffect(() => {
     if (!pollingDetection) return
+    let active = true
+    let checking = false
 
-    const interval = setInterval(() => {
-      checkDetectionStatus()
-    }, 500)
+    async function checkDetectionStatus() {
+      if (checking) return
+      checking = true
+      try {
+        const response = await apiFetch(endpoints.detectStatus)
+        if (!response.ok) throw new Error(`Status API error: ${response.status}`)
+        const status = await response.json()
+        if (!active) return
 
-    return () => clearInterval(interval)
+        if (status.type !== 'detect' && status.type !== 'predict') {
+          setRunningDetection(false)
+          setPollingDetection(false)
+          return
+        }
+        setDetectionProgress(status.progress ?? 0)
+        if (status.state === 'running') {
+          setDemoMessage(status.type === 'predict' ? 'Prediction is running...' : 'Training is running...')
+        } else if (status.state === 'done') {
+          setRunningDetection(false)
+          setPollingDetection(false)
+          setDetectionProgress(1)
+          setDemoMessage(status.type === 'predict' ? 'Prediction completed successfully!' : 'Training completed successfully!')
+          void fetchTrainedModels()
+          if (status.model === 'knn' || status.model === 'decision_tree') {
+            setResultModel(status.model)
+          }
+          setCurrentPage(1)
+          setResultsRevision((value) => value + 1)
+        } else if (status.state === 'failed') {
+          setRunningDetection(false)
+          setPollingDetection(false)
+          setDemoMessage(status.message || 'Detection failed.')
+        }
+      } catch (error) {
+        if (!active) return
+        setRunningDetection(false)
+        setPollingDetection(false)
+        setDemoMessage(error instanceof Error ? error.message : 'Failed to check detection status')
+      } finally {
+        checking = false
+      }
+    }
+
+    void checkDetectionStatus()
+    const interval = window.setInterval(() => { void checkDetectionStatus() }, 500)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [pollingDetection])
 
   async function fetchTrainedModels() {
@@ -92,73 +245,15 @@ export function DetectionPage() {
     }
   }
 
-  async function fetchDetectionResults() {
-    try {
-      const response = await apiFetch(endpoints.detections)
-
-      if (!response.ok) {
-        throw new Error(`Detections API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-      setDetectionResults(data.items ?? [])
-      setDetectionMeta({
-        model: data.model,
-        datasetName: data.datasetName,
-        trainedOn: data.trainedOn,
-        evaluatedOn: data.evaluatedOn,
-        mode: data.mode,
-        total: data.total,
-      })
-    } catch (err) {
-      setDemoMessage(
-        err instanceof Error ? err.message : 'Failed to fetch detection results'
-      )
-    }
-  }
-
-  async function checkDetectionStatus() {
-    try {
-      const response = await apiFetch(endpoints.detectStatus)
-
-      if (!response.ok) {
-        throw new Error(`Status API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      setDetectionProgress(data.progress ?? 0)
-      setDemoMessage(data.message ?? 'Job is running...')
-
-      if (data.state === 'done') {
-        setRunningDetection(false)
-        setPollingDetection(false)
-        setDetectionProgress(1)
-        setDemoMessage('Completed successfully!')
-        await fetchDetectionResults()
-        await fetchTrainedModels()
-      }
-
-      if (data.state === 'failed') {
-        setRunningDetection(false)
-        setPollingDetection(false)
-        setDemoMessage(data.message ?? 'Job failed.')
-      }
-    } catch (err) {
-      setRunningDetection(false)
-      setPollingDetection(false)
-      setDemoMessage(
-        err instanceof Error ? err.message : 'Failed to check status'
-      )
-    }
-  }
-
   async function handleRunTrainAndEvaluate() {
     if (runningDetection) return
 
     setRunningDetection(true)
     setDetectionProgress(0)
+    setResultModel(selectedModel)
     setDemoMessage('Starting model training...')
+    setDetectionResults([])
+    setTotalRecords(0)
 
     try {
       const params: Record<string, unknown> = {}
@@ -200,7 +295,10 @@ export function DetectionPage() {
 
     setRunningDetection(true)
     setDetectionProgress(0)
+    setResultModel(selectedModel)
     setDemoMessage('Starting inference on test dataset...')
+    setDetectionResults([])
+    setTotalRecords(0)
 
     try {
       let response: Response
@@ -561,7 +659,7 @@ export function DetectionPage() {
       </div>
 
       {/* Results */}
-      {detectionResults.length > 0 && (
+      {!runningDetection && totalRecords > 0 && (
         <GlassPanel>
           <div className="mb-5 rounded-xl border border-line p-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -592,7 +690,7 @@ export function DetectionPage() {
 
           <h3 className="font-semibold">Classification results</h3>
           <p className="mt-1 text-sm text-muted">
-            {detectionResults.length} records evaluated by the C++ backend using{' '}
+            {totalRecords.toLocaleString()} records evaluated by the C++ backend using{' '}
             <span className="text-accent">{detectionMeta?.model === 'decision_tree' ? 'Decision Tree' : 'KNN'}</span>.
           </p>
 
@@ -608,7 +706,7 @@ export function DetectionPage() {
                 </tr>
               </thead>
               <tbody>
-                {detectionResults.slice(0, 20).map((result) => (
+                {detectionResults.map((result) => (
                   <tr key={result.id} className="border-t border-line hover:bg-accent-soft">
                     <td className="py-2.5 pr-4 font-mono text-accent">#{result.id}</td>
                     <td className="py-2.5 pr-4 font-medium">{result.label}</td>
@@ -622,10 +720,31 @@ export function DetectionPage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-muted">
-            Showing first {Math.min(20, detectionResults.length)} of {detectionResults.length} records. See Results & Evaluation
-            page for full confusion matrix and metrics.
-          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted">
+              Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalRecords)} of{' '}
+              {totalRecords.toLocaleString()} records. Page {currentPage} of {totalPages}. See Results & Evaluation
+              for the full confusion matrix and metrics.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage <= 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </GlassPanel>
       )}
     </div>

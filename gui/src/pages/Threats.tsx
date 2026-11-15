@@ -20,6 +20,7 @@ export function ThreatsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<unknown>(null)
   const [reload, setReload] = useState(0)
+  const [noDetectionYet, setNoDetectionYet] = useState(false)
 
   const [search, setSearch] = useState('')
   const [attackFilter, setAttackFilter] = useState('All')
@@ -46,8 +47,21 @@ export function ThreatsPage() {
         setLoading(true)
         setError(null)
         const response = await apiFetch(endpoints.detections, { signal: controller.signal })
-        if (!response.ok) await throwApiError(response, 'Detections')
+        if (!response.ok) {
+          if (response.status === 409) {
+            const errorBody = await response.clone().json().catch(() => null)
+            if (errorBody?.error?.code === 'NO_RESULTS') {
+              if (!controller.signal.aborted) {
+                setNoDetectionYet(true)
+                setThreats([])
+              }
+              return
+            }
+          }
+          await throwApiError(response, 'Detections')
+        }
         const data = await response.json()
+        if (!controller.signal.aborted) setNoDetectionYet(false)
         setThreats((data.items ?? []).filter((item: DetectionResult) => item.isMalicious))
       } catch (err) {
         if (controller.signal.aborted) return
@@ -84,7 +98,11 @@ export function ThreatsPage() {
       {!loading && !error && threats.length === 0 && (
         <EmptyState
           title="No threats to show"
-          body="No predicted malicious records are available. Run detection first."
+          body={
+            noDetectionYet
+              ? 'No detection results available. Run detection first.'
+              : 'No malicious threats detected in the latest run.'
+          }
         />
       )}
 
