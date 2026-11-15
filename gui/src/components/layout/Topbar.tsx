@@ -1,7 +1,6 @@
-import { Menu, Play } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import type { HealthStatus } from '../../hooks/useHealth'
 import type { Page } from '../../lib/navigation'
-import { Button } from '../ui/Button'
 import { Pill } from '../ui/Pill'
 import { StatusChip } from './StatusChip'
 
@@ -55,16 +54,6 @@ export function Topbar({
           >
             Dataset: {loadedDataset ?? 'None loaded'}
           </Pill>
-        </div>
-        <div className="hidden md:block">
-          <Button
-            size="sm"
-            disabled
-            title="Replay arrives with the dashboard milestone"
-          >
-            <Play aria-hidden="true" className="size-3.5" />
-            Start replay
-          </Button>
         </div>
         <StatusChip status={status} />
       </div>
