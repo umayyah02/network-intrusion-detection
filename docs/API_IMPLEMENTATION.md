@@ -1,218 +1,657 @@
-# Backend API: what is implemented
 
-Written by Member 2 (backend server) in answer to `API_CONTRACT.md` v0.2, which asks the backend developer to confirm which endpoints exist, document extra error codes, and report differences to the integration member (Member 4).
-TypeScript types for every response: `docs/api-types.ts`. A test that exercises every endpoint: `tests/api_smoke.sh`.
+# Backend API: Implemented Reference
 
-Example values are illustrative, except the confusion matrix and per-class numbers in `/api/metrics`, which come from a real KNN run on the A2 test split.
+This document describes the implemented C++ backend API, including its endpoints, request parameters, responses, and current limitations.
 
-## 1. Confirmation against contract v0.2
+The API contract is documented in `docs/API_CONTRACT.md`.
 
-| Contract endpoint | Status | Notes |
+TypeScript response types are maintained in `docs/api-types.ts`. API smoke tests are located in `tests/api_smoke.sh`.
+
+Example metric values in this document are historical A2 results unless explicitly stated otherwise. They should not be treated as current A3 results.
+
+## 1. Implemented Endpoints
+
+| Method | Endpoint | Purpose |
 |---|---|---|
-| `GET /api/health` | Implemented | |
-| `GET /api/datasets` | Implemented | lists CSV files in the server's data folder; counts only for the loaded one |
-| `POST /api/dataset` | Implemented | multipart upload **or** `{"path": ...}` for a file already on the server |
-| `POST /api/detect` | Implemented | always a background job, `202` with `jobId` |
-| `GET /api/detect/status` | Implemented | states `idle`, `running`, `done`, `failed` |
-| `GET /api/detections` | Implemented | filter `all`, `threats`, `normal` |
-| `GET /api/summary` | Implemented | from the finished detection |
-| `GET /api/metrics` | Implemented | both models side by side; rows = actual, columns = predicted |
-| `GET /api/complexity` | Implemented | needs `POST /api/complexity/run` first (see 3.12); memory is `null` |
+| GET | `/api/health` | Check backend health |
+| GET | `/api/datasets` | List available datasets |
+| GET | `/api/dataset/files` | List dataset files |
+| GET | `/api/dataset/summary` | Get loaded dataset summary |
+| GET | `/api/dataset/preview` | Preview dataset rows |
+| POST | `/api/dataset` | Load a dataset |
+| POST | `/api/dataset/load` | Load a dataset and return its summary |
+| GET | `/api/models` | List supported models |
+| POST | `/api/detect` | Start model training and detection |
+| GET | `/api/detect/status` | Check detection job status |
+| POST | `/api/predict` | Predict using a retained model |
+| POST | `/api/evaluate` | Run the prediction/evaluation workflow |
+| GET | `/api/predict/status` | Check prediction job status |
+| GET | `/api/detections` | Retrieve detection records |
+| GET | `/api/detections/{id}` | Retrieve one detection record |
+| GET | `/api/threats` | Retrieve malicious records |
+| GET | `/api/threats/{id}` | Retrieve one threat record |
+| GET | `/api/summary` | Retrieve detection summary |
+| GET | `/api/metrics` | Retrieve evaluation metrics |
+| GET | `/api/dashboard` | Retrieve dashboard data |
+| POST | `/api/complexity/run` | Start complexity analysis |
+| GET | `/api/complexity` | Retrieve complexity results |
 
-Extra endpoints beyond the contract (the frontend may ignore them): `GET /api/dataset/files`, `GET /api/dataset/summary`, `POST /api/dataset/load`, `GET /api/detections/{id}`, `GET /api/threats`, `GET /api/threats/{id}`, `GET /api/dashboard`, `POST /api/complexity/run`.
+Detection, prediction, and complexity operations run as background jobs and return HTTP `202`.
 
-## 2. Running and conventions
+There is no `/api/docs` endpoint in the current implementation.
 
-```
-inids_server --data-dir data                  # http://127.0.0.1:8080
+## 2. Running and Conventions
+
+The server runs on `127.0.0.1:8080` by default.
+
+```bash
+inids_server --data-dir data
 ```
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--port` | 8080 | |
-| `--host` | 127.0.0.1 | local only. If a client cannot reach `http://localhost:8080`, use `http://127.0.0.1:8080` |
-| `--data-dir` | `data` | folder with the CSV files; uploads go to `uploads/` inside it |
-| `--dataset` | none | CSV (relative to the data dir) to load at start-up |
-| `--allow-origin` | `*` | CORS origin; the React dev server can call the API directly |
-| `--enable-severity` | off | adds a derived Low/Medium/High severity (see 4) |
+| `--port` | 8080 | API server port |
+| `--host` | 127.0.0.1 | Server bind address |
+| `--data-dir` | `data` | Folder containing CSV files; uploads are stored in `uploads/` inside it |
+| `--dataset` | none | CSV file, relative to the data directory, to load at startup |
+| `--allow-origin` | `*` | Allowed CORS origin |
+| `--enable-severity` | off | Enables derived Low/Medium/High severity |
 
-- JSON everywhere (camelCase), except the CSV upload (`multipart/form-data`). Fractions are 0 to 1, durations in milliseconds, times ISO 8601 UTC.
-- Class order: `BENIGN` = 0, `DoS` = 1, `PortScan` = 2, `BruteForce` = 3. `BENIGN` is normal (`isMalicious: false`), the rest are malicious.
-- **One background job at a time** (detection or complexity experiment): starting another gives `409 JOB_RUNNING`.
-- Loading a dataset clears all earlier results.
-- Results describe the **test split** of the loaded file (20% of its rows, same split for both models).
+- The API accepts JSON requests and multipart CSV uploads.
+- JSON fields use camelCase.
+- Fractions range from 0 to 1, durations are in milliseconds, and timestamps use ISO 8601 UTC.
+- Class order: `BENIGN` = 0, `DoS` = 1, `PortScan` = 2, `BruteForce` = 3.
+- `BENIGN` is normal (`isMalicious: false`). The other classes are malicious.
+- Only one background job can run at a time. A new job while another is running returns `409 JOB_RUNNING`.
+- Loading a new dataset clears previous detection results.
+- Detection results describe the test split, normally 20% of the loaded dataset.
 
 ### Errors
 
+Errors use this JSON structure:
+
 ```json
-{ "error": { "code": "INVALID_CSV", "message": "cannot open data/x.csv" } }
+{
+  "error": {
+    "code": "INVALID_CSV",
+    "message": "cannot open data/x.csv"
+  }
+}
 ```
 
-| Status | `code` | When |
+| Status | Common codes | Meaning |
 |---|---|---|
-| 400 | `BAD_REQUEST` | invalid JSON, unknown field, value out of range (the message names the field) |
-| 400 | `INVALID_CSV` | the file is not a readable dataset (not `.csv`, empty, cannot be prepared) |
-| 404 | `NOT_FOUND`, `FILE_NOT_FOUND` | unknown endpoint, id, or CSV |
-| 409 | `NO_DATASET`, `NO_RESULTS`, `JOB_RUNNING`, `DATASET_LOADING` | the call does not fit the current state |
-| 413 | `TOO_LARGE` | request body above 512 MB |
-| 500 | `INTERNAL_ERROR`, `WRITE_FAILED` | server-side problem |
+| 400 | `BAD_REQUEST`, `INVALID_CSV` | Invalid request or unusable CSV |
+| 404 | `NOT_FOUND`, `FILE_NOT_FOUND` | Unknown endpoint, record ID, or CSV file |
+| 409 | `NO_DATASET`, `NO_MODEL`, `NO_RESULTS`, `JOB_RUNNING`, `DATASET_LOADING` | Request conflicts with the current backend state |
+| 413 | `TOO_LARGE` | Request body exceeds 512 MB |
+| 500 | `INTERNAL_ERROR`, `WRITE_FAILED` | Server-side problem |
 
 ## 3. Endpoints
 
 ### 3.1 `GET /api/health`
-`{"status": "ok"}`
+
+Checks whether the backend is responding.
+
+Example response:
+
+```json
+{"status": "ok"}
+```
 
 ### 3.2 `GET /api/datasets`
-```json
-{ "datasets": [
-  { "name": "sample_A2.csv", "records": 2997, "features": 20, "status": "Loaded", "sizeBytes": 412345 },
-  { "name": "sample_V.csv",  "records": null, "features": null, "status": "Available", "sizeBytes": 198765 } ] }
-```
-`records` is the number of usable rows after cleaning. `features` is the number of columns the models use after feature selection. Both are `null` until a file is loaded (nothing is guessed). `status` is `Loaded` or `Available`.
 
-### 3.3 `POST /api/dataset`
-Upload a file (`multipart/form-data`, field `file`) or name one in the data folder:
+Lists available dataset files.
+
+Example response:
+
+```json
+{
+  "datasets": [
+    {
+      "name": "sample_A2.csv",
+      "records": 2997,
+      "features": 20,
+      "status": "Loaded",
+      "sizeBytes": 412345
+    },
+    {
+      "name": "sample_V.csv",
+      "records": null,
+      "features": null,
+      "status": "Available",
+      "sizeBytes": 198765
+    }
+  ]
+}
 ```
+
+`records` represents usable rows after cleaning. `features` represents the number of model input features. These values can be `null` until the file has been loaded and processed.
+
+### 3.3 `GET /api/dataset/files`
+
+Lists CSV files available in the configured dataset directory.
+
+### 3.4 `GET /api/dataset/preview`
+
+Previews rows from the currently loaded dataset.
+
+The limit query parameter controls the number of preview rows. It accepts values from 1 to 100 and defaults to 20. A dataset must be loaded first.
+
+### 3.5 `POST /api/dataset`
+
+Loads a dataset from the data directory or uploads a CSV file.
+
+Upload using multipart form data:
+
+```bash
 curl -X POST http://127.0.0.1:8080/api/dataset -F file=@flows.csv
-curl -X POST http://127.0.0.1:8080/api/dataset -d '{"path":"sample_A2.csv"}'
 ```
-Loads, cleans and prepares the data (stratified 80/20 split, seed 42, feature selection, scaling fitted on the training part). Response:
-```json
-{ "name": "sample_A2.csv", "rows": 2997, "columns": 20, "skippedRows": null, "summary": { "...": "see 3.4" } }
-```
-`columns` is the number of feature columns used by the models, not the raw CSV width. `skippedRows` is `null` because the data layer does not expose its cleaning report yet. Errors: `400`, `404`, `409`.
-`POST /api/dataset/load` takes the same input and returns only the `summary` object.
 
-### 3.4 `GET /api/dataset/summary`
+Load a file already in the data directory:
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/dataset -H "Content-Type: application/json" -d "{\"path\":\"sample_A2.csv\"}"
+```
+
+The backend cleans and prepares the dataset, performs a stratified 80/20 split, and fits preprocessing on the training data.
+
+Example response:
+
 ```json
-{ "loaded": true, "name": "sample_A2.csv", "loadedAt": "2026-10-29T19:00:07Z",
-  "rows": { "total": 2997, "train": 2397, "test": 600 },
-  "featureCount": 20, "features": ["Flow Duration", "..."],
+{
+  "name": "sample_A2.csv",
+  "rows": 2997,
+  "columns": 20,
+  "skippedRows": null,
+  "summary": {
+    "...": "see dataset summary"
+  }
+}
+```
+
+`columns` is the number of feature columns used by the models, not the raw CSV width. `skippedRows` is currently `null` because the data layer does not expose its cleaning report.
+
+### 3.6 `POST /api/dataset/load`
+
+Accepts the same input formats as `POST /api/dataset`, but returns the dataset summary.
+
+### 3.7 `GET /api/dataset/summary`
+
+Returns information about the currently loaded dataset.
+
+Example response:
+
+```json
+{
+  "loaded": true,
+  "name": "sample_A2.csv",
+  "loadedAt": "2026-10-29T19:00:07Z",
+  "rows": {
+    "total": 2997,
+    "train": 2397,
+    "test": 600
+  },
+  "featureCount": 20,
+  "features": ["Flow Duration", "..."],
   "classNames": ["BENIGN", "DoS", "PortScan", "BruteForce"],
-  "classes": [ { "index": 0, "name": "BENIGN", "total": 1498, "train": 1198, "test": 300 } ] }
+  "classes": [
+    {
+      "index": 0,
+      "name": "BENIGN",
+      "total": 1498,
+      "train": 1198,
+      "test": 300
+    }
+  ]
+}
 ```
-Nothing loaded: `{"loaded": false}`.
 
-### 3.5 `POST /api/detect`
+If no dataset is loaded:
+
 ```json
-{ "model": "decision_tree" }
-{ "model": "knn", "params": { "k": 5, "p": 2, "distanceWeighted": true } }
+{"loaded": false}
 ```
-`model`: `decision_tree` or `knn`. `params` is optional; missing values use the settings chosen by cross-validation on the training split. Unknown or out-of-range values give `400`.
 
-| Model | Param | Default | Range |
-|---|---|---|---|
+### 3.8 `GET /api/models`
+
+Lists the supported machine learning models.
+
+The supported model identifiers are `knn` and `decision_tree`.
+
+### 3.9 `POST /api/detect`
+
+Starts model training and detection using the currently loaded dataset.
+
+Example requests:
+
+```json
+{"model": "decision_tree"}
+```
+
+```json
+{
+  "model": "knn",
+  "params": {
+    "k": 5,
+    "p": 2,
+    "distanceWeighted": true
+  }
+}
+```
+
+`model` must be `decision_tree` or `knn`. `params` is optional. Missing parameters use the backend defaults. Unknown or out-of-range values return `400`.
+
+| Model | Parameter | Default | Range |
+|---|---|---:|---|
 | knn | `k` | 1 | 1 to 10000 |
-| knn | `p` (1 = Manhattan, 2 = Euclidean) | 1 | 1 to 10 |
+| knn | `p` (1 = Manhattan, 2 = Euclidean) | 2.0 | 1 to 10 |
 | knn | `distanceWeighted` | false | true / false |
 | decision_tree | `maxDepth` (0 = unlimited) | 0 | 0 to 64 |
-| decision_tree | `minSamplesLeaf` | 2 | 1 and up |
-| decision_tree | `minSamplesSplit` | 2 | 2 and up |
+| decision_tree | `minSamplesLeaf` | 2 | 1 to 1000000 |
+| decision_tree | `minSamplesSplit` | 2 | 2 to 1000000 |
 | decision_tree | `minImpurityDecrease` | 0 | 0 to 1 |
 
-Response `202`: `{"jobId": 1, "type": "detect", "state": "running", "model": "knn", "params": {...}}` (`params` = values actually used). Errors: `400`, `409 NO_DATASET`, `409 JOB_RUNNING`.
+A successful request returns HTTP `202`:
 
-### 3.6 `GET /api/detect/status`
-Status of the current or latest job (detection or complexity). Poll every 300 to 500 ms while `running`.
 ```json
-{ "jobId": 1, "type": "detect", "state": "running", "stage": "predicting", "model": "knn",
-  "progress": 0.455, "message": "", "startedAt": "...", "finishedAt": "", "elapsedMs": 849.7, "resultReady": false }
+{
+  "jobId": 1,
+  "type": "detect",
+  "state": "running",
+  "model": "knn",
+  "params": {}
+}
 ```
-`state`: `idle` (no job since the dataset was loaded), `running`, `done`, `failed`. On `failed`, `message` holds the error text. `stage`: `training`, `predicting`, `evaluating`, `done` (or `failed`).
 
-### 3.7 `GET /api/detections`
-One row per test flow, for the results table. Query (all optional):
+The returned `params` contain the values actually used.
 
-| Query | Values | Default |
+Errors include `400`, `409 NO_DATASET`, `409 DATASET_LOADING`, and `409 JOB_RUNNING`.
+
+### 3.10 `GET /api/detect/status`
+
+Returns the current or latest background job status.
+
+Poll this endpoint every 300–500 ms while a job is running.
+
+Example response:
+
+```json
+{
+  "jobId": 1,
+  "type": "detect",
+  "state": "running",
+  "stage": "predicting",
+  "model": "knn",
+  "progress": 0.455,
+  "message": "",
+  "startedAt": "...",
+  "finishedAt": "",
+  "elapsedMs": 849.7,
+  "resultReady": false
+}
+```
+
+Possible states are `idle`, `running`, `done`, and `failed`. A failed job includes an error message.
+
+Stages include `training`, `predicting`, `evaluating`, `done`, and `failed`.
+
+### 3.11 `POST /api/predict`
+
+Runs prediction using a previously trained and retained model.
+
+The request can provide a CSV path or upload a CSV file. It can also specify the model.
+
+A retained model must exist first. Otherwise, the API returns `409 NO_MODEL`.
+
+The model is retained in backend memory and is lost when the backend restarts.
+
+### 3.12 `POST /api/evaluate`
+
+Runs the prediction/evaluation workflow using the same handler as `POST /api/predict`.
+
+### 3.13 `GET /api/predict/status`
+
+Returns the status of the prediction job.
+
+It uses the same job-status structure as `GET /api/detect/status`.
+
+### 3.14 `GET /api/detections`
+
+Returns detection records for the selected model.
+
+Optional query parameters:
+
+| Parameter | Values | Default |
 |---|---|---|
-| `model` | `decision_tree`, `knn` | the model that finished last |
-| `filter` | `all`, `threats` (malicious), `normal` | `all` |
-| `search` | text; matches label, actual label, id | none |
-| `attackType` | a malicious class name | all |
+| `model` | `decision_tree`, `knn` | Most recently completed model |
+| `filter` | `all`, `threats`, `normal` | `all` |
+| `search` | Text | None |
+| `attackType` | Malicious class name | All |
 | `minConfidence` | 0 to 1 | 0 |
-| `sort` | `id`, `confidence`, `label` (`severity` only with `--enable-severity`) | `id` |
+| `sort` | `id`, `confidence`, `label`, `severity` | `id` |
 | `order` | `asc`, `desc` | `asc` |
-| `page`, `pageSize` | 1 and up, 1 to 100000 | **all rows in one page** unless `pageSize` is given |
+| `page` | 1 or greater | 1 |
+| `pageSize` | 1 to 100000 | All rows |
+
+Severity sorting is available only when severity is enabled.
+
+Example response:
 
 ```json
-{ "model": "knn", "filter": "all", "total": 600, "totalAll": 600, "page": 1, "pageSize": 600, "pages": 1,
-  "items": [ { "id": 83, "label": "PortScan", "classIndex": 2, "isMalicious": true,
-               "confidence": 1.0, "actualLabel": "PortScan", "correct": true } ] }
+{
+  "model": "knn",
+  "filter": "all",
+  "total": 600,
+  "totalAll": 600,
+  "page": 1,
+  "pageSize": 600,
+  "pages": 1,
+  "items": [
+    {
+      "id": 83,
+      "label": "PortScan",
+      "classIndex": 2,
+      "isMalicious": true,
+      "confidence": 1.0,
+      "actualLabel": "PortScan",
+      "correct": true
+    }
+  ]
+}
 ```
-- `label` is the predicted **class name**; `classIndex` is the same class as a number.
-- `actualLabel` is the true class from the dataset. `isMalicious: true` with `actualLabel: "BENIGN"` is a false alarm.
-- `confidence` is real model output (see 5). `severity` appears only with `--enable-severity`.
-- No source IP, destination IP or timestamp: the dataset has no such columns, so none are returned.
 
-`GET /api/detections/{id}?model=knn` returns one row plus `features`: `[{"name", "value"}]` in **scaled units** (log then z-score), not raw values.
+- `label` is the predicted class name.
+- `classIndex` is its numeric class index.
+- `actualLabel` is the true class from the dataset.
+- A malicious prediction with `actualLabel: "BENIGN"` is a false alarm.
+- `confidence` is the model's confidence value.
+- `severity` is included only when severity is enabled.
 
-`GET /api/threats` and `GET /api/threats/{id}` are the same with `filter` fixed to `threats` (and a default page size of 50).
+The dataset does not provide source IP, destination IP, or timestamp fields, so these are not returned.
 
-### 3.8 `GET /api/summary?model=knn`
+### 3.15 `GET /api/detections/{id}`
+
+Returns one detection record and its feature values.
+
+Example query:
+
+```text
+GET /api/detections/83?model=knn
+```
+
+The response includes `features` as name/value pairs. Feature values are scaled values, not raw CSV values.
+
+### 3.16 `GET /api/threats`
+
+Returns malicious detection records. It uses the same filters as `/api/detections`, with the filter fixed to `threats`.
+
+Its default page size is 50.
+
+### 3.17 `GET /api/threats/{id}`
+
+Returns one malicious detection record.
+
+### 3.18 `GET /api/summary`
+
+Returns prediction totals for the selected model.
+
+Example:
+
+```text
+GET /api/summary?model=knn
+```
+
+Example response:
+
 ```json
-{ "model": "knn", "datasetName": "sample_A2.csv", "scope": "predictions on the test split",
-  "total": 600, "normal": 302, "malicious": 298,
-  "classCounts": [ { "classIndex": 0, "name": "BENIGN", "isMalicious": false, "count": 302 },
-                   { "classIndex": 1, "name": "DoS", "isMalicious": true, "count": 121 } ] }
+{
+  "model": "knn",
+  "datasetName": "sample_A2.csv",
+  "scope": "predictions on the test split",
+  "total": 600,
+  "normal": 302,
+  "malicious": 298,
+  "classCounts": [
+    {
+      "classIndex": 0,
+      "name": "BENIGN",
+      "isMalicious": false,
+      "count": 302
+    },
+    {
+      "classIndex": 1,
+      "name": "DoS",
+      "isMalicious": true,
+      "count": 121
+    },
+    {
+      "classIndex": 2,
+      "name": "PortScan",
+      "isMalicious": true,
+      "count": 91
+    },
+    {
+      "classIndex": 3,
+      "name": "BruteForce",
+      "isMalicious": true,
+      "count": 86
+    }
+  ]
+}
 ```
-Counts are the model's **predictions**. `409 NO_RESULTS` before any detection finished.
 
-### 3.9 `GET /api/dashboard?model=knn`
-Same totals plus `accuracy` and `attackTypes: [{name, count}]` (predicted attack types). With `--enable-severity` it also has `severity: [{level, count}]`.
+These are predicted class counts. The endpoint returns `409 NO_RESULTS` if no detection has completed.
 
-### 3.10 `GET /api/metrics`
-Measured on the test split. A model appears once its detection has finished; nothing run yet gives `{"available": [], "models": {}}`.
+### 3.19 `GET /api/metrics`
+
+Returns evaluation metrics for completed models.
+
+If no model has run:
+
 ```json
-{ "available": ["decision_tree", "knn"], "datasetName": "sample_A2.csv",
-  "classNames": ["BENIGN", "DoS", "PortScan", "BruteForce"], "testRows": 600,
-  "models": { "knn": {
-    "model": "knn", "params": { "k": 1, "p": 1.0, "distanceWeighted": false },
-    "info": { "storedTrainingRows": 2397 }, "trainRows": 2397, "testRows": 600, "finishedAt": "...",
-    "metrics": {
-      "accuracy": 0.9833, "macroF1": 0.9828, "falseAlarmRate": 0.0133, "falseAlarms": 4, "benignRows": 300,
-      "detectionRate": 0.98, "alertPrecision": 0.9866, "flagged": 298,
-      "perClass": [ { "name": "BENIGN", "precision": 0.9801, "recall": 0.9867, "f1": 0.9834, "support": 300 },
-                    { "name": "DoS", "precision": 0.9835, "recall": 0.9917, "f1": 0.9876, "support": 120 },
-                    { "name": "PortScan", "precision": 0.9890, "recall": 1.0, "f1": 0.9945, "support": 90 },
-                    { "name": "BruteForce", "precision": 0.9884, "recall": 0.9444, "f1": 0.9659, "support": 90 } ],
-      "confusion": { "labels": ["BENIGN", "DoS", "PortScan", "BruteForce"],
-                     "matrix": [[296,2,1,1],[1,119,0,0],[0,0,90,0],[5,0,0,85]] } },
-    "timing": { "trainMs": 0.4, "predictMs": 44.3, "predictMsPerRow": 0.0739 },
-    "totals": { "total": 600, "normal": 302, "threats": 298 } } } }
+{"available": [], "models": {}}
 ```
-`confusion.matrix[actual][predicted]` in the order of `confusion.labels`. `falseAlarmRate` = benign flows flagged / all benign. `detectionRate` = malicious flows flagged as any attack / all malicious. `alertPrecision` = real attacks among flagged flows. For the tree, `info` has `depth`, `nodes`, `leaves` and the top `featureImportance`.
 
-### 3.11 `POST /api/complexity/run`
-Starts a background timing experiment (shares the job slot and status endpoint). All fields optional:
-```json
-{ "models": ["decision_tree", "knn"], "fractions": [0.1, 0.25, 0.5, 1.0], "repeats": 1 }
-```
-For each model and fraction: train on a stratified share of the training rows, predict the full test split. `202` with the job, then poll 3.6.
+The following is a historical A2 KNN example, not the current A3 result:
 
-### 3.12 `GET /api/complexity`
 ```json
-{ "ready": true, "datasetName": "sample_A2.csv", "repeats": 1, "finishedAt": "...",
-  "runs": [ { "model": "decision_tree", "fraction": 0.5, "trainRows": 1198, "testRows": 600,
-              "trainMs": 14.2, "predictMs": 0.1, "predictMsPerRow": 0.00017, "memoryBytes": null } ],
-  "theory": { "variables": "n = training records, f = features, h = tree height",
-              "decision_tree": { "train": "O(n f log n)", "predict": "O(h) per record", "storage": "..." },
-              "knn": { "train": "none (stores the training rows)", "predict": "...", "storage": "O(n f)" } } }
+{
+  "available": ["decision_tree", "knn"],
+  "datasetName": "sample_A2.csv",
+  "classNames": ["BENIGN", "DoS", "PortScan", "BruteForce"],
+  "testRows": 600,
+  "models": {
+    "knn": {
+      "model": "knn",
+      "params": {
+        "k": 1,
+        "p": 1.0,
+        "distanceWeighted": false
+      },
+      "info": {
+        "storedTrainingRows": 2397
+      },
+      "trainRows": 2397,
+      "testRows": 600,
+      "finishedAt": "...",
+      "metrics": {
+        "accuracy": 0.9833,
+        "macroF1": 0.9828,
+        "falseAlarmRate": 0.0133,
+        "falseAlarms": 4,
+        "benignRows": 300,
+        "detectionRate": 0.98,
+        "alertPrecision": 0.9866,
+        "flagged": 298,
+        "perClass": [
+          {
+            "name": "BENIGN",
+            "precision": 0.9801,
+            "recall": 0.9867,
+            "f1": 0.9834,
+            "support": 300
+          },
+          {
+            "name": "DoS",
+            "precision": 0.9835,
+            "recall": 0.9917,
+            "f1": 0.9876,
+            "support": 120
+          },
+          {
+            "name": "PortScan",
+            "precision": 0.9890,
+            "recall": 1.0,
+            "f1": 0.9945,
+            "support": 90
+          },
+          {
+            "name": "BruteForce",
+            "precision": 0.9884,
+            "recall": 0.9444,
+            "f1": 0.9659,
+            "support": 90
+          }
+        ],
+        "confusion": {
+          "labels": ["BENIGN", "DoS", "PortScan", "BruteForce"],
+          "matrix": [
+            [296, 2, 1, 1],
+            [1, 119, 0, 0],
+            [0, 0, 90, 0],
+            [5, 0, 0, 85]
+          ]
+        }
+      },
+      "timing": {
+        "trainMs": 0.4,
+        "predictMs": 44.3,
+        "predictMsPerRow": 0.0739
+      },
+      "totals": {
+        "total": 600,
+        "normal": 302,
+        "threats": 298
+      }
+    }
+  }
+}
 ```
-Before any run: `{"ready": false, "runs": [], "theory": {...}}`. Times are measured wall-clock milliseconds on the server. **Memory is not measured**, so `memoryBytes` is `null` (as the contract asks).
+
+`confusion.matrix[actual][predicted]` follows the order in `confusion.labels`.
+
+- `falseAlarmRate` = benign flows incorrectly flagged / all benign flows.
+- `detectionRate` = malicious flows correctly flagged as attacks / all malicious flows.
+- `alertPrecision` = actual attacks among all flagged flows.
+
+For the decision tree, `info` also includes tree details such as depth, nodes, leaves, and feature importance.
+
+### 3.20 `GET /api/dashboard`
+
+Returns dashboard data for the selected model, including dataset information, prediction totals, accuracy, and predicted attack types.
+
+When severity is enabled, the response also includes severity counts.
+
+### 3.21 `POST /api/complexity/run`
+
+Starts a background complexity experiment. It shares the single background job slot with detection and prediction.
+
+Example request:
+
+```json
+{
+  "models": ["decision_tree", "knn"],
+  "fractions": [0.1, 0.25, 0.5, 1.0],
+  "repeats": 1
+}
+```
+
+All fields are optional.
+
+For each model and training fraction, the backend trains on a stratified share of the training rows and predicts the full test split.
+
+The request returns HTTP `202`. Poll `/api/detect/status` to check progress.
+
+### 3.22 `GET /api/complexity`
+
+Returns complexity experiment results.
+
+Example response:
+
+```json
+{
+  "ready": true,
+  "datasetName": "sample_A2.csv",
+  "repeats": 1,
+  "finishedAt": "...",
+  "runs": [
+    {
+      "model": "decision_tree",
+      "fraction": 0.5,
+      "trainRows": 1198,
+      "testRows": 600,
+      "trainMs": 14.2,
+      "predictMs": 0.1,
+      "predictMsPerRow": 0.00017,
+      "memoryBytes": null
+    }
+  ],
+  "theory": {
+    "variables": "n = training records, f = features, h = tree height",
+    "decision_tree": {
+      "train": "O(n f log n)",
+      "predict": "O(h) per record",
+      "storage": "..."
+    },
+    "knn": {
+      "train": "none (stores the training rows)",
+      "predict": "...",
+      "storage": "O(n f)"
+    }
+  }
+}
+```
+
+Before an experiment, `ready` is `false` and `runs` is empty. The `theory` field provides theoretical cmplexity information.
+
+Times are wall-clock measurements on the server. Memory usage is not measured, so `memoryBytes` is `null`.
 
 ## 4. Severity
 
-The contract says not to invent severity, and the PRD asks the team to agree a mapping (open question 3). So the server **omits severity by default**. If the team agrees on a mapping, start the server with `--enable-severity`; the mapping then in `src/api/severity.h` is: `DoS` = High, `BruteForce` = Medium, `PortScan` = Low, and confidence below 0.6 lowers it by one level. Change that one function to change the rule.
+Severity is disabled by default. Start the server with `--enable-severity` to include derived severity values in responses.
+
+The current mapping in `include/severity.h` is:
+
+| Attack type | Severity |
+|---|---|
+| DoS | High |
+| BruteForce | Medium |
+| PortScan | Low |
+| Other | Medium |
+
+Confidence below `0.6` lowers the severity by one level, with Low as the minimum.
+
+Severity is derived from the predicted attack class and confidence. It is not a directly measured property of the network traffic.
 
 ## 5. Confidence
 
-Real model output, not invented: for KNN the share of the K nearest neighbours that voted for the predicted class; for the Decision Tree the share of the predicted class among the training rows in the leaf.
-With **K = 1** (the cross-validated default) every KNN confidence is exactly 1.0, and a deep tree has mostly pure leaves, so most values are 1.0. Do not design the UI around a wide spread. Use `k` of 3 or more if the demo needs varied confidence.
+Confidence is calculated from the model output:
 
-## 6. Points for Member 4 to confirm
+- **KNN:** the share of the nearest neighbours that voted for the predicted class.
+- **Decision Tree:** the share of training rows belonging to the predicted class in the selected leaf.
 
-1. `label` in detection rows is the class **name** (`"DoS"`), with the number in `classIndex`. The contract's class table could also be read as a number; tell us if the frontend wants the number as `label`.
-2. `POST /api/dataset` also accepts `{"path": ...}` for files already in the data folder, so the demo does not need an upload every time.
-3. `columns` in the upload reply is the feature count the models use, and `skippedRows` is `null` until the data layer exposes its cleaning report.
-4. Severity stays off until the team agrees a mapping.
-5. `/api/detections` returns every test row unless `pageSize` is given. Add paging in the UI if the test split gets large.
+With KNN `k = 1`, confidence is always `1.0`, because only one neighbour votes. Decision trees with pure leaves can also produce confidence values of `1.0`.
+
+Use a larger KNN `k` if the demonstration needs more varied confidence values.
+
+## 6. Current Limitations
+
+- Trained models are retained in backend memory and are lost when the server restarts.
+- Prediction requires a previously retained model.
+- Only one background job can run at a time.
+- Severity is disabled by default.
+- Memory usage is not measured by complexity analysis; `memoryBytes` is `null`.
+- Dataset preview requires a dataset to be loaded.
+- Results from the training-and-detection workflow are based on the test split of the loaded dataset.
+- The current backend does not provide a `/api/docs` endpoint.
