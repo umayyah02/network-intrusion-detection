@@ -1,124 +1,108 @@
 
 # API Contract
 
-**Version:** 0.2
-**Status:** Draft — for team review  
-**Purpose:** Define communication between the INIDS frontend and backend.
+**Version:** 1.0
+**Status:** Implemented API reference
+
+This document describes the HTTP API used by the INIDS frontend and C++ backend.
 
 ## 1. General Rules
 
-- Base URL: `http://localhost:8080` (to be confirmed by the backend developer).
+- Default base URL: `http://127.0.0.1:8080`
 - Data format: JSON, except CSV uploads, which use `multipart/form-data`.
-- The frontend must display real backend results, not hardcoded demo predictions.
-- If an endpoint needs to change or a new endpoint is required, notify the integration/testing member before changing the contract.
+- Detection, prediction, and complexity operations run as background jobs and return HTTP `202`.
+- Trained models are retained in backend memory and are lost when the server restarts.
 
 ## 2. Model Classes
 
-The backend uses these four classes:
+| Class | Label | Type |
+|---|---:|---|
+| BENIGN | 0 | Normal |
+| DoS | 1 | Malicious |
+| PortScan | 2 | Malicious |
+| BruteForce | 3 | Malicious |
 
-| Class | Label |
-|---|---:|
-| BENIGN | 0 |
-| DoS | 1 |
-| PortScan | 2 |
-| BruteForce | 3 |
+`BENIGN` is represented as `isMalicious: false`. The other three classes are represented as `isMalicious: true`.
 
-For the dashboard, the proposed mapping is:
-- `BENIGN` → normal (`isMalicious: false`)
-- `DoS`, `PortScan`, `BruteForce` → malicious (`isMalicious: true`)
+## 3. Implemented Endpoints
 
-The backend and frontend developers must agree on this mapping.
+### Health and dataset
 
-## 3. API Endpoints
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/health` | Check backend health |
+| GET | `/api/datasets` | List available datasets |
+| GET | `/api/dataset/files` | List available dataset files |
+| GET | `/api/dataset/summary` | Get the loaded dataset summary |
+| GET | `/api/dataset/preview` | Preview loaded dataset rows |
+| POST | `/api/dataset` | Load a dataset and return a compact response |
+| POST | `/api/dataset/load` | Load a dataset and return its summary |
 
-All endpoints below are proposed. The backend developer must confirm which ones are implemented.
+Dataset loading accepts a JSON body containing a `path`, or a multipart upload using the `file` field.
 
-### Required core endpoints
+### Models and detection
 
-**GET `/api/health`**
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/models` | List supported models |
+| POST | `/api/detect` | Start model training and detection |
+| GET | `/api/detect/status` | Check detection job status |
+| POST | `/api/predict` | Predict using a retained trained model |
+| POST | `/api/evaluate` | Evaluate using the prediction workflow |
+| GET | `/api/predict/status` | Check prediction job status |
 
-Checks whether the backend is running.
+Supported model names are `decision_tree` and `knn`.
 
-Example response:
-```json
-{
-  "status": "ok"
-}
-```
+Detection accepts a JSON body containing `model` and optional `params`.
 
-**GET `/api/datasets`**
+Prediction and evaluation accept a dataset path or a multipart CSV upload. A retained trained model is required.
 
-Returns the available datasets.
+### Results and dashboard
 
-Example response:
-```json
-{
-  "datasets": [
-    {
-      "name": "sample.csv",
-      "records": 3000,
-      "features": 20,
-      "status": "Loaded"
-    }
-  ]
-}
-```
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/detections` | Retrieve detection records |
+| GET | `/api/detections/{id}` | Retrieve one detection record |
+| GET | `/api/threats` | Retrieve malicious records |
+| GET | `/api/threats/{id}` | Retrieve one threat record |
+| GET | `/api/summary` | Retrieve detection summary |
+| GET | `/api/metrics` | Retrieve evaluation metrics |
+| GET | `/api/dashboard` | Retrieve dashboard data |
 
-**POST `/api/dataset`**
+The detections endpoint returns all records by default. The threats endpoint returns 50 records by default. Both support page and page-size parameters.
 
-Uploads and loads a CSV dataset using `multipart/form-data`.
+### Complexity analysis
 
-The response should report the dataset name, number of rows, number of columns, and any skipped rows.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/complexity/run` | Start complexity analysis |
+| GET | `/api/complexity` | Retrieve complexity results |
 
-**POST `/api/detect`**
+Memory usage is not measured. The `memoryBytes` value is therefore `null`.
 
-Starts detection using the selected model.
+## 4. Job Status
 
-Request:
-```json
-{
-  "model": "decision_tree"
-}
-```
+Detection, prediction, and complexity operations run as background jobs.
 
-Allowed model names: `decision_tree`, `knn`.
+The status response includes:
 
-If detection runs as a background job, return HTTP `202` with a `jobId`. The backend must then provide the status endpoint below. Otherwise, the backend developer should confirm the synchronous response format.
+- `jobId`
+- `type`
+- `state`
+- `stage`
+- `model`
+- `progress`
+- `message`
+- `startedAt`
+- `finishedAt`
+- `elapsedMs`
+- `resultReady`
 
-**GET `/api/detect/status`**
+## 5. Errors
 
-Optional if detection runs in the background. Returns the job ID, state (`idle`, `running`, `done`, or `failed`), progress, and an error message if it fails.
+Errors use a JSON structure containing an error code and message.
 
-**GET `/api/detections`**
-
-Returns prediction results for the frontend table. Support filtering by `all`, `threats`, or `normal` if required by the UI.
-
-Each result should include:
-- `id`
-- `label`
-- `isMalicious`
-
-Only include additional fields when the dataset or backend actually provides them.
-
-### Additional endpoints — confirm against the UI and project requirements
-
-**GET `/api/summary`**
-
-Returns total records, normal records, malicious records, and class counts if required by the dashboard.
-
-**GET `/api/metrics`**
-
-Returns evaluation metrics and the confusion matrix if required by the evaluation page. Metrics must come from actual model evaluation, not example values.
-
-The confusion matrix must use the class order defined in Section 2, with rows representing actual classes and columns representing predicted classes.
-
-**GET `/api/complexity`**
-
-Returns measured training time, prediction time, and memory usage for performance analysis, if required by the project requirements. Do not invent measurements; use `null` when a value is unavailable.
-
-## 4. Error Responses
-
-Use a consistent error format:
+Example:
 
 ```json
 {
@@ -129,18 +113,23 @@ Use a consistent error format:
 }
 ```
 
-Use appropriate HTTP status codes:
-- `400` — invalid input or CSV
-- `404` — resource not found
-- `409` — operation conflicts with the current state
-- `500` — internal server error
+Common HTTP status codes include:
 
-The backend developer should document any additional error codes that are implemented.
+| Status | Meaning |
+|---|---|
+| 400 | Invalid request or input |
+| 404 | Resource or endpoint not found |
+| 409 | Operation conflicts with the current backend state |
+| 500 | Internal server error |
+| 202 | Background job accepted |
 
-## 5. Important Notes
+Examples of backend error codes include `INVALID_CSV`, `NO_DATASET`, `NO_MODEL`, `DATASET_LOADING`, and `JOB_RUNNING`.
 
-- The API endpoints are a proposed interface, not proof that the endpoints already exist.
-- Do not invent prediction confidence, severity, source IP, timestamps, or other unavailable data.
-- The frontend should show `N/A` for unavailable display values, or omit those fields if they are not needed.
-- The backend developer should notify the integration/testing member if more endpoints or different response fields are needed.
-- The integration/testing member will update this contract after the team agrees on the final implementation.
+## 6. Important Notes
+
+- Detection trains the selected model on the loaded dataset.
+- Prediction uses a previously retained model; it does not train a new model.
+- Retained models are not saved to disk.
+- Severity information is disabled by default and can be enabled with `--enable-severity`.
+- Complexity analysis does not currently measure memory usage.
+- This document describes implemented routes, not proposed future endpoints.

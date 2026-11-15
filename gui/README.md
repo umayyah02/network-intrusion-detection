@@ -6,11 +6,13 @@ React + TypeScript console for the INIDS intrusion detection backend (C++17, Dec
 
 ## Run it
 
+Requirements: Node.js 20.19+ or 22.12+, npm, and the C++ backend running for live dataset, detection and evaluation features.
+
 Start the backend first (see the repository README), then:
 
 ```bash
 cd gui
-npm install
+npm ci
 npm run dev
 ```
 
@@ -23,7 +25,7 @@ Open the address Vite prints (usually http://localhost:5173/).
 | `npm run typecheck` | TypeScript check |
 | `npm run build` | Typecheck and production build |
 
-The API address defaults to `http://127.0.0.1:8080`. Override it with `VITE_API_BASE_URL` in a `.env` file.
+The frontend connects to `http://127.0.0.1:8080` by default (the standard INIDS backend port). If your backend uses another address, create `gui/.env.local` with `VITE_API_BASE_URL=<your backend URL>` and restart the dev server.
 
 ## Typical flow
 
