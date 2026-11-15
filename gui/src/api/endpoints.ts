@@ -1,0 +1,16 @@
+export const endpoints = {
+  dashboard: '/api/dashboard',
+  datasets: '/api/datasets',
+  dataset: '/api/dataset',
+  datasetSummary: '/api/dataset/summary',
+  datasetPreview: '/api/dataset/preview?limit=20',
+  datasetFiles: '/api/dataset/files',
+  models: '/api/models',
+  detect: '/api/detect',
+  detectStatus: '/api/detect/status',
+  detections: '/api/detections',
+  predict: '/api/predict',
+  metrics: '/api/metrics',
+  complexity: '/api/complexity',
+  complexityRun: '/api/complexity/run',
+} as const
